@@ -1,0 +1,144 @@
+/* -*-c++-*- */
+/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+ * Copyright 2015 Pelican Mapping
+ * http://osgearth.org
+ *
+ * osgEarth is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+
+#ifndef OSGEARTH_HORIZON_H
+#define OSGEARTH_HORIZON_H 1
+
+#include <osgEarth/Common>
+#include <osgEarth/SpatialReference>
+#include <osg/NodeCallback>
+#include <osg/Vec3d>
+#include <osg/Shape>
+
+namespace osgEarth
+{
+    /**
+     * Horizon operations (for a geocentric map).
+     */
+    class OSGEARTH_EXPORT Horizon
+    {
+    public:
+        /** Construct a horizon using a default WGS84 ellipsoid model. */
+        Horizon();
+
+        /** Construct a horizon providing the ellipsoid model. */
+        Horizon(const osg::EllipsoidModel& ellipsoid);
+
+        /** Copy */
+        Horizon(const Horizon& rhs);
+
+        virtual ~Horizon() { }
+
+        /**
+         * Ellipsoid model to use for occlusion testing
+         */
+        void setEllipsoid(const osg::EllipsoidModel& ellipsoid);
+
+        /**
+         * Sets the eye position to use when testing for occlusion.
+         */
+        void setEye(const osg::Vec3d& eyeECEF);
+        
+        /**
+         * Whether a point is visible over the horizon.
+         * Specify an optional radius to test a sphere.
+         */
+        bool isVisible(const osg::Vec3d& point, double radius =0.0) const;
+                
+        /**
+         * Whether a bounding sphere is visible over the horizon.
+         */
+        bool isVisible(const osg::BoundingSphere& bs) const {
+            return isVisible(bs.center(), bs.radius());
+        }
+
+        /**
+         * Whether the horizon occludes a point/sphere.
+         */
+        bool occludes(const osg::Vec3d& point, double radius =0.0) const {
+            return !isVisible(point, radius);
+        }
+
+        /**
+         * Sets the output variable to the horizon plane plane with its
+         * normal pointing at the eye. 
+         */
+        bool getPlane(osg::Plane& out_plane) const;
+        
+    protected:
+
+        osg::Vec3d _eye;
+        osg::Vec3d _eyeUnit;
+        osg::Vec3d _VC;       
+        double     _VCmag;    // distance from eye to center (scaled)
+        double     _VCmag2;   // distance from eye to center squared (scaled)
+        double     _VHmag2;   // distance from eye to horizon squared (scaled)
+        double     _coneCos;  // cosine of half-cone
+        double     _coneTan;  // tangent of half-cone
+
+        osg::Vec3d _scale;
+        osg::Vec3d _scaleInv;
+        osg::Vec3d _scaleToMinHAE;
+    };
+
+
+    /**
+     * Cull callback that culls a node if it is occluded by the
+     * horizon.
+     */
+    class OSGEARTH_EXPORT HorizonCullCallback : public osg::NodeCallback
+    {
+    public:
+        /** Construct the callback with a default Horizon model. */
+        HorizonCullCallback();
+
+        /**
+         * Whether to cull by the center point only, or by the bounding sphere.
+         */
+        void setCullByCenterPointOnly(bool value) { _centerOnly = value; }
+        bool getCullByCenterPointOnly() const { return _centerOnly; }
+
+        /**
+         * Enable or disable the culler
+         */
+        void setEnabled(bool value) { _enabled = value; }
+        bool getEnabled() const { return _enabled; }
+
+        /**
+         * Horizon to cull againts
+         */
+        void setHorizon(const Horizon& horizon) { _horizon = horizon; }
+        const Horizon& getHorizon() const { return _horizon; }
+
+    public: // osg::NodeCallback
+        void operator()(osg::Node* node, osg::NodeVisitor* nv);
+
+    protected:
+        virtual ~HorizonCullCallback() { }
+
+    private:
+        bool    _centerOnly;
+        bool    _enabled;
+        Horizon _horizon;
+    };
+
+
+}
+
+#endif // OSGEARTH_HORIZON_H
