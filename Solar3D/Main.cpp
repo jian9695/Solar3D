@@ -761,7 +761,9 @@ int main(int argc, char** argv)
 
   // add the state manipulator
   viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
-  setupGraphics(viewer.getCamera());
+  
+  // fix dual screen spreading issue
+  //setupGraphics(viewer.getCamera());
 
   viewer.realize();
   while (!viewer.done())
