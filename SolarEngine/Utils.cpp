@@ -265,7 +265,7 @@ CustomControls::CustomImageControl* Utils::createCompass(CustomControls::Control
 		"}\n"
 		"void main(void) \n"
 		"{\n"
-		"    vec4 color = texture2D(texture0, rotateXY(gl_TexCoord[0].xy, rotateAngle * 0.0174533));\n"
+		"    vec4 color = texture2D(texture0, rotateXY(gl_TexCoord[0].xy, -rotateAngle * 0.0174533));\n"
 		"    if(color.a < 0.5)\n"
 		"      color = vec4(0.1,0.1,0.1,0.4);\n"
 		"    else\n"

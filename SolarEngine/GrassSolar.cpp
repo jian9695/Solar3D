@@ -731,6 +731,18 @@ std::vector<SunVector> GrassSolar::getSunVectors(SolarParam& sparam)
 	m_sunVectors.clear();
 	calculateSolarRadiation(sparam);
 	m_COLLECT_SUN_VECTOR = false;
+	//printf("longitude: %f, latitude: %f\n", sparam.m_lon, sparam.m_lat);
+	//for (size_t i = 0; i < m_sunVectors.size(); i++)
+	//{
+	//	double altitude = m_sunVectors[i].m_alt;
+	//	double azimuth = m_sunVectors[i].m_azimuth;
+	//	osg::Vec3d sundir = Utils::solarAngle2Vector(altitude, azimuth);
+	//	//std::stringstream ss;
+	//	//ss << "azimuth: " << azimuth << ", altitude: " << altitude << ", solar direction: (" << sundir.x() << "," << sundir.y() << "," << sundir.z() << ")\n";
+	//	//std::string str = ss.str();
+	//	printf("azimuth: %f, altitude: %f,solor direction: (%f,%f,%f)\n", azimuth, altitude, sundir.x(), sundir.y(), sundir.z());
+	//}
+
 	return m_sunVectors;
 }
 

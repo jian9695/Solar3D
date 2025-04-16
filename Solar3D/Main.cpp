@@ -518,7 +518,7 @@ public:
         {
           osg::Vec3d eye, center, up;
           viewer->getCamera()->getViewMatrixAsLookAt(eye, center, up);
-          osg::Vec3d look = (center - eye);
+          osg::Vec3d look = -(center - eye);
           look.normalize();
           osg::Vec3d north(0, 0, 1);
           double projectedX = look * north;
@@ -637,6 +637,30 @@ public:
   }
 };
 
+void setupGraphics(osg::Camera* camera)
+{
+  //viewer.getCamera()->setViewport(new osg::Viewport(100, 100, 1024, height));
+  osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
+
+  // Set to screen 0 (can also try 1, 2, etc. depending on multi-monitor config)
+  traits->screenNum = 0;
+
+  // Set window size and position (within screen 0)
+  traits->x = 100;     // x position on screen
+  traits->y = 100;     // y position on screen
+  traits->width = 1024; // width of the window
+  traits->height = 768;// height of the window
+
+  traits->windowDecoration = true;
+  traits->doubleBuffer = true;
+  traits->sharedContext = 0;
+
+  // Create the graphics context
+  osg::ref_ptr<osg::GraphicsContext> gc = osg::GraphicsContext::createGraphicsContext(traits.get());
+  camera->setGraphicsContext(gc.get());
+  camera->setViewport(new osg::Viewport(0, 0, 1024, 768));
+}
+
 int main(int argc, char** argv)
 {
   m_solarParam = Utils::createDefaultSolarParam();
@@ -737,6 +761,7 @@ int main(int argc, char** argv)
 
   // add the state manipulator
   viewer.addEventHandler(new osgGA::StateSetManipulator(viewer.getCamera()->getOrCreateStateSet()));
+  setupGraphics(viewer.getCamera());
 
   viewer.realize();
   while (!viewer.done())
