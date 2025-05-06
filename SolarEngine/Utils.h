@@ -28,4 +28,9 @@ public:
 	static bool nodeHasNormals(osg::Node* node);
 	static CustomControls::CustomImageControl* createCompass(CustomControls::ControlCanvas* cs, int viewWidth, int viewHeight);
 	static SolarParam createDefaultSolarParam();
+
+	static std::vector<SunVector> getSunVectors(SolarParam& sparam);
+	static void solar_azimuth_angle(int day_of_year, double latitude, double longitude, double local_time, double& zenith, double& azimuth);
+	static void Utils::getDaylightHours(int dayofyear, double lat, double lon, double& startHour, double& endHour);
+	static SolarRadiation getTotalIrradiance(int dayofyear, double linke, double elevation, double solarAzimuth, double solarZenith, double surfaceAzimuth, double surfaceTilt, bool isShadowed = false);
 };

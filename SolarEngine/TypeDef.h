@@ -252,7 +252,7 @@ struct SolarParam
 		m_linke = 3.0;
 		m_bsky = 1;
 		m_dsky = 1;
-		m_time_step = 1;
+		m_time_step = 0.01;
 		m_day = 1;
 		m_startDay = 1;
 		m_endDay = 1;

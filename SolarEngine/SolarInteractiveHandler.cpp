@@ -237,10 +237,16 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 		endDay = startDay;
 	int lastSteps = 0;
 	GrassSolar rsun;
+	double linke = solarParam.m_linke;
+	double elevation = solarParam.m_elev;
+	double slope = solarParam.m_slope;
+	double aspect = solarParam.m_aspect;
+	double lon = solarParam.m_lon;
+	double lat = solarParam.m_lat;
 	for (int day = startDay; day <= endDay; day++)
 	{
 		solarParam.m_day = day;
-		std::vector<SunVector> sunVecs = rsun.getSunVectors(solarParam);
+		std::vector<SunVector> sunVecs = Utils::getSunVectors(solarParam);
 		if (lastSteps != sunVecs.size())
 		{
 			if (solarParam.m_shadowInfo)
@@ -248,17 +254,22 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 			solarParam.m_shadowInfo = new bool[sunVecs.size()];
 		}
 		std::string shadowInfo = "";
+		solarParam.m_day = day;
+		SolarRadiation dailyRad;
+		dailyRad.Zero();
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
-			solarParam.m_shadowInfo[n] = m_cubemap->isShadowed((double)sunVec.m_alt, (double)sunVec.m_azimuth);
+			bool isShadowed = m_cubemap->isShadowed((double)sunVec.m_alt, (double)sunVec.m_azimuth);
+			solarParam.m_shadowInfo[n] = isShadowed;
 			shadowInfo += (solarParam.m_shadowInfo[n] ? "1" : "0");
 			if (n < sunVecs.size() - 1)
 				shadowInfo += ",";
+			SolarRadiation rad = Utils::getTotalIrradiance(day, linke, elevation, sunVec.m_azimuth, 90.0 - sunVec.m_alt, aspect, slope, false);
+			dailyRad = dailyRad + (rad * solarParam.m_time_step);
 		}
 		//printf("%s\n", shadowInfo.data());
-		solarParam.m_day = day;
-		SolarRadiation dailyRad = rsun.calculateSolarRadiation(solarParam);
+
 		dailyRads.push_back(dailyRad);
 		annualRad = annualRad + dailyRad;
 	}
