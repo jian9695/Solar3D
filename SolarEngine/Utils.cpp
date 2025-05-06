@@ -56,7 +56,7 @@ double Utils::calculateAspect(osg::Vec3d normal)
 	normalxy.normalize();
 	normalxy.z() = 0;
 	normalxy.normalize();
-	double cosa = acos(normalxy * osg::Vec3d(1, 0, 0));
+	double cosa = acos(normalxy * osg::Vec3d(0, 1, 0));
 	aspect = osg::RadiansToDegrees(cosa);
 	if (normal.y() < 0)
 		aspect = 360 - aspect;

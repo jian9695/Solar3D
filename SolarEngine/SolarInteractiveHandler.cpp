@@ -257,6 +257,11 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 		solarParam.m_day = day;
 		SolarRadiation dailyRad;
 		dailyRad.Zero();
+		SolarRadiation radd = Utils::getTotalIrradiance(day, linke, elevation, 180, 30, 180, slope, false);
+		radd = Utils::getTotalIrradiance(day, linke, elevation, 180, 30, 90, slope, false);
+		radd = Utils::getTotalIrradiance(day, linke, elevation, 180, 30, 0, slope, false);
+		radd = Utils::getTotalIrradiance(day, linke, elevation, 180, 30, 270, slope, false);
+		radd = Utils::getTotalIrradiance(day, linke, elevation, 180, 30, 270, slope, false);
 		for (int n = 0; n < sunVecs.size(); n++)
 		{
 			SunVector sunVec = sunVecs[n];
