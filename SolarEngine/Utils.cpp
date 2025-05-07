@@ -70,6 +70,23 @@ double Utils::calculateSlope(osg::Vec3d normal)
 	return slope;
 }
 
+void Utils::computeSurfaceAngles(const osg::Vec3d normal, double& tilt, double& azimuth)
+{
+	osg::Vec3d n = normal;
+	n.normalize(); // Ensure normal is unit length
+
+	// Compute tilt angle (angle from vertical Z-axis)
+	tilt = std::acos(n.z()) * 180.0 / M_PI; // Convert to degrees
+
+	// Compute azimuth angle (angle from Y-axis in the XY plane)
+	azimuth = std::atan2(n.x(), n.y()) * 180.0 / M_PI; // Convert to degrees
+
+	// Ensure azimuth is within [0, 360] range
+	if (azimuth < 0)
+		azimuth += 360.0;
+}
+
+
 osg::Vec3d Utils::solarAngle2Vector(double alt, double azimuth)
 {
 	osg::Vec3d lightDir;

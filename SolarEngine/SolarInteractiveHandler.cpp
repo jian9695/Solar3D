@@ -105,8 +105,10 @@ void SolarInteractiveHandler::processIntersection(osgUtil::LineSegmentIntersecto
 	param.m_lon = geoPos.x();
 	param.m_lat = geoPos.y();
 	param.m_elev = param.m_elev + max(geoPos.z(), 0);
-	param.m_slope = Utils::calculateSlope(surfaceNormal);
-	param.m_aspect = Utils::calculateAspect(surfaceNormal);
+	double surfaceTilt, surfaceAzimuth;
+	Utils::computeSurfaceAngles(surfaceNormal, surfaceTilt, surfaceAzimuth);
+	param.m_slope = surfaceTilt;
+	param.m_aspect = surfaceAzimuth;
 
 	for (int i = 0; i < m_cubemap->getNumChildren(); i++)
 	{
@@ -230,7 +232,7 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 	SolarRadiation annualRad;
 	annualRad.Zero();
 	std::vector<SolarRadiation> dailyRads;
-	
+	solarParam.m_time_step = 1.0;
 	int startDay = solarParam.m_startDay;
 	int endDay = solarParam.m_endDay;
 	if (solarParam.m_isSingleDay && endDay > startDay)
@@ -270,7 +272,7 @@ SolarRadiation SolarInteractiveHandler::calSolar(SolarParam& solarParam)
 			shadowInfo += (solarParam.m_shadowInfo[n] ? "1" : "0");
 			if (n < sunVecs.size() - 1)
 				shadowInfo += ",";
-			SolarRadiation rad = Utils::getTotalIrradiance(day, linke, elevation, sunVec.m_azimuth, 90.0 - sunVec.m_alt, aspect, slope, false);
+			SolarRadiation rad = Utils::getTotalIrradiance(day, linke, elevation, sunVec.m_azimuth, 90.0 - sunVec.m_alt, aspect, slope, isShadowed);
 			dailyRad = dailyRad + (rad * solarParam.m_time_step);
 		}
 		//printf("%s\n", shadowInfo.data());

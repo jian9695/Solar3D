@@ -19,6 +19,7 @@ public:
 	static double calculateSlope(osg::Vec3d normal);
 	static double calAzimuthAngle(double x, double y);
 	static osg::Vec3d solarAngle2Vector(double alt, double azimuth);
+	static void computeSurfaceAngles(const osg::Vec3d normal, double& tilt, double& azimuth);
 	static std::vector<osg::Vec3d> sunVector2LightDir(std::vector<SunVector>& sunvectors);
 	static double calSVF(osg::Image* img, bool applyLambert);
 	static SolarRadiation calSolar(osg::Image* img, SolarParam* solarParam, osg::Vec3d pos, osg::Vec3d normal, osg::Node* sceneNode);
