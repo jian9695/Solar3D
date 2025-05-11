@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+/* osgEarth - Geospatial SDK for OpenSceneGraph
  * Copyright 2008-2011 Pelican Mapping
  * http://osgearth.org
  *
@@ -26,6 +26,7 @@
 #include <osg/NodeVisitor>
 #include <osg/State>
 #include <osg/Version>
+#include <osg/Drawable>
 #include <sstream>
 #include <set>
 
@@ -43,6 +44,7 @@ namespace osg
     class Texture2DMultisample;
     class TextureCubeMap;
     class PointSprite;
+    class LightSource;
 }
 
 namespace osgSim
@@ -56,7 +58,7 @@ namespace osgEarth
      * Traverses a scene graph and generates VirtualProgram attributes to
      * render the geometry using GLSL shaders.
      *
-     * You can use this class directly, but they osgEarth Registry holds
+     * You can use this class directly, but the osgEarth Registry holds
      * a system-wide implementation that the user can replace. So the best
      * way to use this class is:
      *
@@ -113,13 +115,7 @@ namespace osgEarth
          */
         static bool ignore(const osg::Object* object);
 
-    public: // deprecated
-
-        /**
-         * Sets the name to give any VP's we create           
-         * @deprecated Now a NO-OP. Use run(graph, name, ...) instead.
-         */
-        void setProgramName(const std::string& name) const { }
+    public:
 
         /**
          * Whether to automatically duplicate (by cloning) subgraphs with
@@ -165,12 +161,14 @@ namespace osgEarth
         virtual void apply( osg::PagedLOD& );
         virtual void apply( osg::ProxyNode& );
         virtual void apply( osg::ClipNode& );
+        virtual void apply( osg::Drawable& );
 
     public: // types not in osg::NodeVisitor
 
         virtual void applyNonCoreNodeIfNecessary( osg::Node& );
         
         virtual void apply( osgSim::LightPointNode& );
+
 
     protected: // high-level entry points:
 
@@ -188,7 +186,8 @@ namespace osgEarth
 
         struct OSGEARTH_EXPORT GenBuffers
         {
-            std::stringstream _vertHead, _vertBody;
+            std::stringstream _modelHead, _modelBody;
+            std::stringstream _viewHead, _viewBody;
             std::stringstream _fragHead, _fragBody;
             osg::StateSet*    _stateSet;
             unsigned          _version;
@@ -228,6 +227,9 @@ namespace osgEarth
         // each parent has a complete separate copy of the child.
         virtual void duplicateSharedNode(osg::Node& child);
 
+        // disables (or removes) attributes that won't work in teh current configuration
+        virtual void disableUnsupportedAttributes(osg::StateSet* stateset);
+
     protected:
 
         osg::ref_ptr<osg::State> _state;
@@ -239,6 +241,8 @@ namespace osgEarth
 
         typedef std::vector<osg::ref_ptr<AcceptCallback> > AcceptCallbackVector;
         AcceptCallbackVector _acceptCallbacks;
+
+        std::set<osg::Drawable*> _drawablesVisited;
 
         bool accept(const osg::StateAttribute* sa) const;
     };

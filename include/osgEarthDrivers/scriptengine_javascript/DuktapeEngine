@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -58,8 +58,9 @@ namespace osgEarth { namespace Drivers { namespace Duktape
         {
             Context();
             ~Context();
-            void initialize(const ScriptEngineOptions&);
+            void initialize(const ScriptEngineOptions&, bool);
             duk_context* _ctx;
+            osg::observer_ptr<const Feature> _feature;
         };
 
         PerThread<Context> _contexts;

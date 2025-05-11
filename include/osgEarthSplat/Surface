@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -20,10 +20,12 @@
 #define OSGEARTH_PROCEDURAL_SURFACE 1
 
 #include "Export"
-#include "BiomeRegion"
+#include "Coverage"
+#include "SplatCatalog"
 #include <osgEarth/Common>
 #include <osgEarth/Config>
 #include <osgEarth/URI>
+#include <osgEarth/LandCover>
 
 namespace osgEarth {
     class Map;
@@ -32,9 +34,6 @@ namespace osgEarth {
 namespace osgEarth { namespace Splat
 {
     using namespace osgEarth;
-
-    class SplatCatalog;
-    class SplatCoverageLegend;
 
     /**
      * Options pertaining to the terrain surface raster splatting.
@@ -51,30 +50,22 @@ namespace osgEarth { namespace Splat
         optional<URI>& catalogURI() { return _catalogURI; }
         const optional<URI>& catalogURI() const { return _catalogURI; }
 
-        /** URI of the optional file defining biome-specific catalogs.
-            Define either this OR catalogURI. */
-        optional<URI>& biomesURI() { return _biomesURI; }
-        const optional<URI>& biomesURI() const { return _biomesURI; }
-
     protected:
         optional<URI> _catalogURI;
-        optional<URI> _biomesURI;
 
     public:
         void fromConfig(const Config& conf) {
-            conf.getIfSet("catalog", _catalogURI);
-            conf.getIfSet("biomes",  _biomesURI);
+            conf.get("catalog", _catalogURI);
         }
         
         Config getConfig() const {
             Config conf = ConfigOptions::getConfig();
-            conf.key() = "surface";
-            conf.updateIfSet("catalog", _catalogURI);
-            conf.updateIfSet("biomes",  _biomesURI);
+            //conf.key() = "surface";
+            conf.set("catalog", _catalogURI);
             return conf;
         }
 
-        void mergeConfig( const Config& conf ) {
+        virtual void mergeConfig( const Config& conf ) {
             ConfigOptions::mergeConfig( conf );
             fromConfig( conf );
         }
@@ -91,19 +82,34 @@ namespace osgEarth { namespace Splat
 
     public:
         /** Catalog that maps coverage codes to textures */
-        void setCatalog(SplatCatalog* catalog);
-        SplatCatalog* getCatalog() const;
-        
-        /** List of biome regions, each of which points to a SplatCatalog.
-          * Use this OR the single catalog above. */
-        BiomeRegionVector& getBiomeRegions() { return _biomeRegions; }
-        const BiomeRegionVector& getBiomeRegions() const { return _biomeRegions; }
+        void setCatalog(SplatCatalog* catalog) { _catalog = catalog; }
+        SplatCatalog* getCatalog() const { return _catalog.get(); }
+
+        /**
+         * Loads textures for splatting and generates a sampling function.
+         * Returns false if something goes wrong
+         */
+        bool loadTextures(const LandCoverDictionary* landCoverDict, const osgDB::Options* readOptions);
+
+        /** Gets the texture definition creates by loadTextures */
+        const SplatTextureDef& getTextureDef() const { return _textureDef; }
+
+        osg::StateSet* getOrCreateStateSet();
+        osg::StateSet* getStateSet() const { return _stateSet.get(); }
+
+        void resizeGLObjectBuffers(unsigned maxSize);
+
+        void releaseGLObjects(osg::State* state) const;
 
     protected:
         virtual ~Surface() { }
 
     protected:
-        std::vector<BiomeRegion> _biomeRegions;
+        osg::ref_ptr<SplatCatalog> _catalog;
+        SplatTextureDef            _textureDef;
+        osg::ref_ptr<osg::StateSet> _stateSet;
+
+        osg::Texture* createLUTBuffer(const LandCoverDictionary* lcd) const;
 
     public:
 
@@ -112,5 +118,7 @@ namespace osgEarth { namespace Splat
     };
 
 } } // namespace osgEarth::Splat
+
+OSGEARTH_SPECIALIZE_CONFIG(osgEarth::Splat::SurfaceOptions);
 
 #endif // OSGEARTH_PROCEDURAL_SURFACE

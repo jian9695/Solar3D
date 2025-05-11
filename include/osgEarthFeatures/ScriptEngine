@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -36,7 +36,10 @@ namespace osgEarth { namespace Features
   {
   public:
       ScriptEngineOptions( const ConfigOptions& options =ConfigOptions() ) : 
-        DriverConfigOptions( options ) { fromConfig(_conf); }
+        DriverConfigOptions( options )
+      {
+          fromConfig(_conf);
+      }
 
     virtual ~ScriptEngineOptions() { }
 
@@ -77,6 +80,10 @@ namespace osgEarth { namespace Features
         return script ? supported(script->getLanguage()) : false;
     }
 
+    /** Impl-specific profile to set. */
+    void setProfile(const std::string& profile) { _profile = profile; }
+    const std::string& getProfile() const { return _profile; }
+
     /** Runs a code snippet. */
     virtual ScriptResult run(const std::string& code, Feature const* feature=0L, FilterContext const* context=0L) =0;
 
@@ -84,12 +91,6 @@ namespace osgEarth { namespace Features
     virtual ScriptResult run(Script* script, Feature const* feature=0L, FilterContext const* context=0L)
     {
         return script ? run(script->getCode(), feature, context) : ScriptResult("", false);
-    }
-
-    /** deprecated */
-    virtual ScriptResult call(const std::string& function, Feature const* feature=0L, FilterContext const* context=0L)
-    {
-        return ScriptResult("", false, "ScriptResult::call not implemented");
     }
 
   public:
@@ -103,6 +104,7 @@ namespace osgEarth { namespace Features
   protected:
     // common script to be included in each call to run()
     optional<Script> _script;
+    std::string _profile;
   };
 
   typedef std::list< osg::ref_ptr<ScriptEngine> > ScriptEngineList;
@@ -125,6 +127,7 @@ namespace osgEarth { namespace Features
 
     static ScriptEngine* create( const std::string& language, const std::string& engineName="", bool quiet =false);
     static ScriptEngine* create( const Script& script, const std::string& engineName="", bool quiet =false);
+    static ScriptEngine* createWithProfile( const Script& script, const std::string& profile, const std::string& engineName="", bool quiet =false);
     static ScriptEngine* create( const ScriptEngineOptions& options, bool quiet =false);
 
   protected:

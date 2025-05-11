@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+/* osgEarth - Geospatial SDK for OpenSceneGraph
 * Copyright 2008-2012 Pelican Mapping
 * http://osgearth.org
 *
@@ -44,17 +44,13 @@ namespace osgEarth
         /** is it supported by the h/w? */
         bool supported() const { return _supported; }
 
-        /** whether to create its own lighting mode uniform (default = true).
-          * Set this to false if you are creating the lighting uniform elsewhere.
-          * The lighting uniform is returned by ShaderFactory::createUniformForGLMode(GL_LIGHTING). */
-        void setCreateLightingUniform(bool value);
-
     public:
         /** attach this effect to a stateset. */
         void attach(osg::StateSet* stateset);
 
         /** detach this effect from any attached statesets. */
         void detach();
+
         /** detach this effect from a stateset. */
         void detach(osg::StateSet* stateset);
 
@@ -65,8 +61,7 @@ namespace osgEarth
 
         bool _supported;
         StateSetList _statesets;
-        bool _createLightingUniform;
-        osg::ref_ptr<osg::Uniform> _lightingUniform;
+        //osg::ref_ptr<osg::Uniform> _lightingUniform;
 
         void init();
     };

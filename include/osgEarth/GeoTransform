@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -61,6 +61,7 @@ namespace osgEarth
          * positions.
          */
         void setTerrain(Terrain* terrain);
+        osg::ref_ptr<Terrain> getTerrain() const { osg::ref_ptr<Terrain> t; _terrain.lock(t); return t; }
 
         /**
          * Enabling this will cause the object to automatically 
@@ -70,6 +71,39 @@ namespace osgEarth
          * a reference terrain (see setTerrain).
          */
         void setAutoRecomputeHeights(bool value);
+        bool getAutoRecomputeHeights() const { return _autoRecomputeHeights; }
+
+    public:
+        /** Callback that lets the user intercept the compute*Matrix functions during a traversal. */
+        class OSGEARTH_EXPORT ComputeMatrixCallback : public osg::Referenced
+        {
+        public:
+            virtual bool computeLocalToWorldMatrix(const GeoTransform* xform, osg::Matrix& m, osg::NodeVisitor* nv) const;
+            virtual bool computeWorldToLocalMatrix(const GeoTransform* xform, osg::Matrix& m, osg::NodeVisitor* nv) const;
+        };
+
+        /** Installs a compute matrix callback */
+        void setComputeMatrixCallback(ComputeMatrixCallback* cb);
+
+
+    public: // osg::Transform
+
+        virtual bool computeLocalToWorldMatrix(osg::Matrix& m, osg::NodeVisitor* nv) const {
+            return _computeMatrixCallback.valid()
+                ? _computeMatrixCallback->computeLocalToWorldMatrix(this, m, nv)
+                : osg::MatrixTransform::computeLocalToWorldMatrix(m, nv);
+        }
+
+        virtual bool computeWorldToLocalMatrix(osg::Matrix& m, osg::NodeVisitor* nv) const {
+            return _computeMatrixCallback.valid()
+                ? _computeMatrixCallback->computeWorldToLocalMatrix(this, m, nv)
+                : osg::MatrixTransform::computeWorldToLocalMatrix(m, nv);
+        }
+
+
+    public: // osg::Node
+
+        virtual void traverse(osg::NodeVisitor& nv);
 
 
     public: // TerrainCallback interface
@@ -79,13 +113,18 @@ namespace osgEarth
                          osg::Node*              node,
                          TerrainCallbackContext& context);
 
+
     protected:
         virtual ~GeoTransform() { }
 
-        GeoPoint                   _position;
-        osg::observer_ptr<Terrain> _terrain;
-        bool                       _autoRecompute;
-        bool                       _autoRecomputeReady;
+        GeoPoint                   _position;                 // Current position
+        osg::observer_ptr<Terrain> _terrain;                  // Terrain for relative height resolution
+        bool                       _terrainCallbackInstalled; // Whether the Terrain callback is in
+        bool                       _autoRecomputeHeights;     // Whether to resolve relative position Z's
+        bool                       _findTerrainInUpdateTraversal; // True is we need _terrain but don't have it
+        bool                       _clampInUpdateTraversal;       // Whether a terrain clamp is required
+
+        osg::ref_ptr<ComputeMatrixCallback> _computeMatrixCallback;
 
         void configureAutoRecompute(Terrain* terrain);
     };

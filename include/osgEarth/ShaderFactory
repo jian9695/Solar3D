@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -24,6 +24,8 @@
 
 #include <osgEarth/Common>
 #include <osgEarth/VirtualProgram>
+#include <osgEarth/ColorFilter>
+#include <vector>
 
 namespace osgEarth
 {
@@ -67,23 +69,8 @@ namespace osgEarth
         virtual ShaderComp::StageMask createMains(
             const ShaderComp::FunctionLocationMap&    functions,
             const VirtualProgram::ShaderMap&          in_shaders,
+            const VirtualProgram::ExtensionsSet&      in_extensions,
             std::vector< osg::ref_ptr<osg::Shader> >& out_mains) const;
-
-        /**
-         * Creates a vertex shader main() function for use with VirtualPrograms.
-         * Do not call this function directly; VirtualProgram will call it to
-         * install its main() vertex function.
-         */
-        virtual osg::Shader* createVertexShaderMain(
-            const ShaderComp::FunctionLocationMap& functions) const;
-        
-        /**
-         * Creates a fragment shader main() function for use with VirtualPrograms.
-         * Do not call this function directly; VirtualProgram will call it to
-         * install its main() fragment function.
-         */
-        virtual osg::Shader* createFragmentShaderMain(
-            const ShaderComp::FunctionLocationMap& functions) const;
 
         /**
          * Builds a shader function that executes an image filter chain.
@@ -93,14 +80,6 @@ namespace osgEarth
         virtual osg::Shader* createColorFilterChainFragmentShader(
             const std::string&      functionName,
             const ColorFilterChain& chain ) const;
-
-        /**
-         * Gets a uniform corresponding to the given mode and value. These uniforms are 
-         * named in the form "oe_mode_MODE" (e.g., "oe_mode_GL_LIGHTING").
-         */
-        virtual osg::Uniform* createUniformForGLMode(
-            osg::StateAttribute::GLMode      mode,
-            osg::StateAttribute::GLModeValue value ) const;
 
         /**
          * The name of the range uniform created by createRangeUniform().

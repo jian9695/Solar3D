@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+/* osgEarth - Geospatial SDK for OpenSceneGraph
  * Copyright 2008-2014 Pelican Mapping
  * http://osgearth.org
  *
@@ -30,6 +30,8 @@ namespace osgEarth
         virtual bool elevationTexturesRequired() const =0;
         virtual bool normalTexturesRequired() const =0;
         virtual bool parentTexturesRequired() const =0;
+        virtual bool elevationBorderRequired() const =0;
+        virtual bool fullDataAtFirstLodRequired() const =0;
 
     public:
         virtual ~TerrainEngineRequirements() { }

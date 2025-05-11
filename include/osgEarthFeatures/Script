@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -120,9 +120,11 @@ namespace osgEarth { namespace Features
 
     const std::string& message() const { return _msg; }
 
-    std::string asString() { return _value; }
+    const std::string& asString() const { return _value; }
 
-    double asDouble(double defaultValue=0.0) { return _value.length() > 0 ? ::atof(_value.c_str()) : defaultValue; }
+    double asDouble(double defaultValue=0.0) const { return _value.length() > 0 ? ::atof(_value.c_str()) : defaultValue; }
+
+    bool asBool() const { return _value.compare("true")==0; }
 
   protected:
     std::string _value;

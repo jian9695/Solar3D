@@ -1,0 +1,1 @@
+Solar3D ./data/models/OAP3D.oap3d

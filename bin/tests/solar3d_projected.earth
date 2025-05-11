@@ -1,0 +1,77 @@
+<!--
+osgEarth Sample. Like boston.earth, but on a projected map
+-->
+
+<map name="Projected OAP3D Demo" type="projected">
+    
+    <options>
+		<profile srs="+proj=utm +zone=19 +ellps=GRS80 +units=m +no_defs"
+		         xmin="291343"  xmax="367343"
+				 ymin="4653876" ymax="4722276"
+                 num_tiles_wide_at_lod_0="1"
+				 num_tiles_high_at_lod_0="1">
+        </profile>
+    </options>
+    
+    <image name="arcgis-world-imagery" driver="arcgis">
+        <url>http://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/</url>
+		<nodata_image>http://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/100/0/0.jpeg</nodata_image>
+		<cache_policy usage="no_cache"/>
+    </image>
+    
+    <!--<elevation name="readymap_elevation" driver="tms">
+        <url>http://readymap.org/readymap/tiles/1.0.0/116/</url>
+    </elevation>-->
+
+  <annotations>
+    <label text="OAP3D">
+      <position x="329343" y="4688076" z="0" srs="+proj=utm +zone=19 +ellps=GRS80 +units=m +no_defs"/>
+      <!--<position x="-71.0589" y="42.3601" alt="0" srs="wgs84"/>-->
+      <!--<position lon="-71.0589" lat="42.3601" alt="0" srs="wgs84"/>-->
+      <style type="text/css">
+        text-align:     center_center;
+        text-size:      20;
+        text-declutter: true;
+        text-halo:      #777;
+        text-bbox-fill: #00FF0033;
+        text-bbox-margin: 3;
+        text-bbox-border: #FFFFFFFF;
+        text-bbox-border-width: 1;
+      </style>
+    </label>
+
+    <model name="OAP3D">
+      <position x="329343" y="4688076" z="0" srs="+proj=utm +zone=19 +ellps=GRS80 +units=m +no_defs"/>
+      <!--<position x="-71.0589" y="42.3601" alt="0" srs="wgs84"/>-->
+      <!--<position lon="-71.0589" lat="42.3601" alt="0" srs="wgs84"/>-->
+      <local_offset x="3024.08521" y="9106.22070" z="0"/>
+      <scale x="1.0" y="1.0" z="1.0"/>
+      <style>
+        model: "../data/models/OAP3D.oap3d";
+        model-heading:0.0;
+        model-pitch: 0.0;
+        model-roll: 0.0;
+      </style>
+    </model>
+
+    <model name="CAD">
+      <position x="329343" y="4688076" z="0" srs="+proj=utm +zone=19 +ellps=GRS80 +units=m +no_defs"/>
+      <local_offset x="0" y="1000" z="10"/>
+      <scale x="1.0" y="1.0" z="1.0"/>
+      <style>
+        model: "../data/models/CAD/CAD.osgb";
+        model-heading:0.0;
+        model-pitch: 0.0;
+        model-roll: 0.0;
+      </style>
+    </model>
+  </annotations>
+
+  <viewpoints time="1.0">
+    <viewpoint name="OAP3D" heading="24.261" height="0" lat="42.3301" long="-71.0689" pitch="-21.6" range="2450"/>
+    <viewpoint name="CAD" heading="24.261" height="0" lat="42.34201" long="-71.0689" pitch="-10.6" range="1450"/>
+    <viewpoint name="OAP3D" heading="24.261" height="0" x="329343" y="4688076" pitch="-21.6" range="2450" srs="+proj=utm +zone=19 +ellps=GRS80 +units=m +no_defs"/>
+    <viewpoint name="CAD" heading="24.261" height="0" x="329343" y="4689076" pitch="-21.6" range="2450" srs="+proj=utm +zone=19 +ellps=GRS80 +units=m +no_defs"/>
+  </viewpoints>
+
+</map>

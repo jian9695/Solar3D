@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+/* osgEarth - Geospatial SDK for OpenSceneGraph
  * Copyright 2008-2014 Pelican Mapping
  * http://osgearth.org
  *
@@ -23,11 +23,44 @@
 #include <osgEarth/TerrainTileModel>
 #include <osgEarth/TerrainOptions>
 #include <osgEarth/TerrainEngineRequirements>
-#include <osgEarth/MapFrame>
+#include <osgEarth/ImageLayer>
 #include <osgEarth/Progress>
 
 namespace osgEarth
 {
+    /**
+     * Filter you can pass to TerrainTileModelFactory::createTileModel
+     */
+    class CreateTileModelFilter
+    {
+    public:
+        CreateTileModelFilter() : _elevation(false) { }
+
+        /** Whether to fetch elevation data and normal maps */
+        optional<bool>& elevation() { return _elevation; }
+        const optional<bool>& elevation() const { return _elevation; }
+
+        /** List of other layers to accept */
+        std::set<UID>& layers() { return _layers; }
+        const std::set<UID>& layers() const { return _layers; }
+
+        bool accept(const Layer* layer) const {
+            return empty() || _layers.find(layer->getUID()) != _layers.end();
+        }
+
+        bool empty() const {
+            return !_elevation.isSet() && _layers.empty();
+        }
+
+        void clear() {
+            _elevation.unset();
+            _layers.clear();
+        }
+    protected:
+        optional<bool> _elevation;
+        std::set<UID> _layers;
+    };
+
     /**
      * Builds a TerrainTileModel from a map frame.
      */
@@ -41,48 +74,55 @@ namespace osgEarth
         /**
          * Creates a tile model and populates it with data from the map.
          *
-         * @param frame       Map frame from which to read source data
-         * @param key         Tile key for which to create the model
-         * @param modelStore  Access to other tile models; if set, the factory
-         *                    will be able to access parent and neighbor data
-         *                    where appropriate
-         * @param progress    Progress tracking callback
+         * @param frame        Map frame from which to read source data
+         * @param key          Tile key for which to create the model
+         * @param layers       Set of layer UIDs for which to fetch data; NULL => all layers
+         * @param requirements Hints that tell the factory what types of data to add
+         * @param progress     Progress tracking callback
          */
         virtual TerrainTileModel* createTileModel(
-            const MapFrame&                  frame,
+            const Map*                       map,
             const TileKey&                   key,
+            const CreateTileModelFilter&     filter,
             const TerrainEngineRequirements* requirements,
             ProgressCallback*                progress);
 
     protected:
 
-        virtual void addImageLayers(
-            TerrainTileModel*            model,
-            const MapFrame&              frame,
-            const TileKey&               key,
-            ProgressCallback*            progress);
+        virtual void addColorLayers(
+            TerrainTileModel*                model,
+            const Map*                       map,
+            const TerrainEngineRequirements* reqs,
+            const TileKey&                   key,
+            const CreateTileModelFilter&     filter,
+            ProgressCallback*                progress);
 
         virtual void addElevation(
             TerrainTileModel*            model,
-            const MapFrame&              frame,
+            const Map*                   map,
             const TileKey&               key,
+            const CreateTileModelFilter& filter,
+            unsigned                     border,
             ProgressCallback*            progress);
 
-        virtual void addNormalMap(
+        virtual void addPatchLayers(
             TerrainTileModel*            model,
-            const MapFrame&              frame,
+            const Map*                   map,
             const TileKey&               key,
+            const CreateTileModelFilter& filter,
             ProgressCallback*            progress);
 
     protected:
 
         /** Find a heightfield in the cache, or fetch it from the source. */
         bool getOrCreateHeightField(
-            const MapFrame&                 frame,
+            const Map*                      map,
             const TileKey&                  key,
             ElevationSamplePolicy           samplePolicy,
             ElevationInterpolation          interpolation,
+            unsigned                        border,
             osg::ref_ptr<osg::HeightField>& out_hf,
+            osg::ref_ptr<NormalMap>&        out_normalMap,
             ProgressCallback*               progress);
 
         osg::Texture* createImageTexture(
@@ -97,9 +137,11 @@ namespace osgEarth
             osg::Image* image) const;
 
         osg::Texture* createNormalTexture(
-            osg::Image* image) const;
+            osg::Image* image,
+            bool compress
+            ) const;
 
-        const TerrainOptions& _options;
+        const TerrainOptions _options;
         
 
         /** Key into the height field cache */
@@ -118,9 +160,16 @@ namespace osgEarth
             }
         };
 
-        typedef osg::ref_ptr<osg::HeightField> HFCacheValue;
+        struct HFCacheValue
+        {
+            osg::ref_ptr<osg::HeightField> _hf;
+            osg::ref_ptr<NormalMap> _normalMap;
+        };
+        //typedef osg::ref_ptr<osg::HeightField> HFCacheValue;
         typedef LRUCache<HFCacheKey, HFCacheValue> HFCache;
         HFCache _heightFieldCache;
+        bool    _heightFieldCacheEnabled;
+        osg::ref_ptr<osg::Texture> _emptyTexture;
     };
 }
 

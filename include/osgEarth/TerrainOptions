@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 #include <osgEarth/Config>
 #include <osgEarth/GeoCommon>
 #include <osg/Texture>
+#include <osg/LOD>
 
 namespace osgEarth
 {    
@@ -55,15 +56,6 @@ namespace osgEarth
         const optional<float>& verticalOffset() const { return _verticalOffset; }
 
         /**
-         * @deprecated - Use MapOptions::elevationTileSize instead
-         * The sample ratio for height fields. I.e., the terrain engine
-         * will sample heightfield grids at this ratio
-         * Default = 1.0
-         */
-        optional<float>& heightFieldSampleRatio() { return _heightFieldSampleRatio; }
-        const optional<float>& heightFieldSampleRatio() const { return _heightFieldSampleRatio; }
-
-        /**
          * Size of each dimension of each terrain tile, in verts. Ideally this 
          * will be a power of 2 plus 1, i.e.: a number X with that X = (2^Y)+1
          * where Y is an integer >= 1.
@@ -75,23 +67,17 @@ namespace osgEarth
 
         /**
          * The minimum tile LOD range as a factor of the tile's radius.
-         * Default = 6.0.
+         * Default = 7.0.
          */
         optional<float>& minTileRangeFactor() { return _minTileRangeFactor; }
         const optional<float>& minTileRangeFactor() const { return _minTileRangeFactor; }
 
         /**
-         * Distance (m) over which to ramp min_range and max_range blending
-         * Default = 0.
+         * Distance (m) over which to ramp min_range and max_range blending; Default = 0.
+         * @deprecated (remove after 2.10) Use VisibleLayer::attenuation instead.
          */
         optional<float>& attenuationDistance() { return _attenuationDistance; }
-        const optional<float>& attentuationDistance() const { return _attenuationDistance; }
-
-        /**
-         * Transition time, in seconds, for tile image fade-in when LOD blending is enabled
-         */
-        optional<float>& lodTransitionTime() { return _lodTransitionTimeSeconds; }
-        const optional<float>& lodTransitionTime() const { return _lodTransitionTimeSeconds; }
+        const optional<float>& attenuationDistance() const { return _attenuationDistance; }
 
         /**
          * Whether cluster culling is enabled on terrain tiles (default = true)
@@ -131,25 +117,7 @@ namespace osgEarth
          * Whether to explicity enable or disable GL lighting on the map node.
          */
         optional<bool>& enableLighting() { return _enableLighting; }
-        const optional<bool>& enableLighting() const { return _enableLighting; }  
-    
-        /**
-         * Whether to enable mipmaping and mipmap generation on textures
-         */
-        optional<bool>& enableMipmapping() { return _enableMipmapping; }
-        const optional<bool>& enableMipmapping() const { return _enableMipmapping; }
-
-        /**
-         * The min filter to be applied to textures
-         */
-        optional<osg::Texture::FilterMode>& minFilter() { return _minFilter;}
-        const optional<osg::Texture::FilterMode>& minFilter() const { return _minFilter;}
-
-        /**
-         * The mag filter to be applied to textures
-         */
-        optional<osg::Texture::FilterMode>& magFilter() { return _magFilter;}
-        const optional<osg::Texture::FilterMode>& magFilter() const { return _magFilter;}
+        const optional<bool>& enableLighting() const { return _enableLighting; }
             
         /**
          * Whether to enable blending on the terrain. Default is true.
@@ -158,10 +126,17 @@ namespace osgEarth
         const optional<bool>& enableBlending() const { return _enableBlending; }
 
         /**
+         * Whether to compress the normal map
+         */
+        optional<bool>& compressNormalMaps() { return _compressNormalMaps; }
+        const optional<bool>& compressNormalMaps() const { return _compressNormalMaps; }
+
+        /**
          * Whether to enable the "fast path" for spherical Mercator image layers
          * Default = true. If enabled, Mercator image tiles will be rendered on a
          * geocentric map with no reprojection. The trade-off is higher texture
          * memory usage and NPOT texture usage.
+         * @deprecated (remove after 2.10)
          */
         optional<bool>& enableMercatorFastPath() { return _mercatorFastPath; }
         const optional<bool>& enableMercatorFastPath() const { return _mercatorFastPath; }
@@ -186,6 +161,33 @@ namespace osgEarth
          */
         optional<bool>& debug() { return _debug; }
         const optional<bool>& debug() const { return _debug; }
+
+        optional<int>& binNumber() { return _binNumber; }
+        const optional<int>& binNumber() const { return _binNumber; }
+
+        /**
+         * Terrain tile expiration
+         */
+        optional<int>& minExpiryFrames() { return _minExpiryFrames; }
+        const optional<int>& minExpiryFrames() const { return _minExpiryFrames; }
+
+        optional<double>& minExpiryTime() { return _minExpiryTime; }
+        const optional<double>& minExpiryTime() const { return _minExpiryTime; }
+
+        /**
+         * Whether the terrain should cast shadows - default is false
+         */
+        optional<bool>& castShadows() { return _castShadows; }
+        const optional<bool>& castShadows() const { return _castShadows; }
+
+        /** Mode to use when calculating LOD switching distances.
+         *  Choices are DISTANCE_FROM_EYE_POINT (default) or PIXEL_SIZE_ON_SCREEN */
+        optional<osg::LOD::RangeMode>& rangeMode() { return _rangeMode;}
+        const optional<osg::LOD::RangeMode>& rangeMode() const { return _rangeMode;}
+
+        /** The size of the tile, in pixels, when using rangeMode = PIXEL_SIZE_ON_SCREEN */
+        optional<float>& tilePixelSize() { return _tilePixelSize; }
+        const optional<float>& tilePixelSize() const { return _tilePixelSize; }
    
     public:
         virtual Config getConfig() const;
@@ -201,29 +203,28 @@ namespace osgEarth
                     
         optional<float> _verticalScale;
         optional<float> _verticalOffset;
-        optional<float> _heightFieldSampleRatio;
         optional<int>   _tileSize;
         optional<float> _minTileRangeFactor;        
-        optional<bool> _combineLayers;
         optional<unsigned> _minLOD;
         optional<unsigned> _maxLOD;
         optional<unsigned> _firstLOD;
         optional<bool> _enableLighting;
         optional<float> _attenuationDistance;
-        optional<float> _lodTransitionTimeSeconds;
-        optional<bool>  _enableMipmapping;
         optional<bool> _clusterCulling;
         optional<bool> _enableBlending;
+        optional<bool> _compressNormalMaps;
         optional<bool> _mercatorFastPath;
-        optional<osg::Texture::FilterMode> _magFilter;
-        optional<osg::Texture::FilterMode> _minFilter;
         optional<ElevationInterpolation> _elevationInterpolation;
-        optional<unsigned> _primaryTraversalMask;
-        optional<unsigned> _secondaryTraversalMask;
         optional<unsigned> _minNormalMapLOD;
         optional<bool> _gpuTessellation;
         optional<bool> _debug;
+        optional<int> _binNumber;
+        optional<int> _minExpiryFrames;
+        optional<double> _minExpiryTime;
+        optional<bool> _castShadows;
+        optional<osg::LOD::RangeMode> _rangeMode;
+        optional<float> _tilePixelSize;
     };
 }
 
-#endif // OSGEARTH_MAP_ENGINE_PROPERTIES_H
+#endif // OSGEARTH_TERRAIN_OPTIONS_H

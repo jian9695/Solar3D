@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 #ifndef OSGEARTH_ANNO_MODEL_NODE_H
 #define OSGEARTH_ANNO_MODEL_NODE_H 1
 
-#include <osgEarthAnnotation/LocalizedNode>
+#include <osgEarthAnnotation/GeoPositionNode>
 #include <osgEarth/URI>
 #include <osgEarth/CachePolicy>
 #include <osgDB/ReaderWriter>
@@ -36,7 +36,7 @@ namespace osgEarth { namespace Annotation
      * Annotation node that loads a 3D model from a URI and places it
      * at a geo location.
      */
-    class OSGEARTHANNO_EXPORT ModelNode : public LocalizedNode
+    class OSGEARTHANNO_EXPORT ModelNode : public GeoPositionNode
     {
     public:
         /**
@@ -46,7 +46,7 @@ namespace osgEarth { namespace Annotation
         ModelNode(
             MapNode*              mapNode,
             const Style&          style,
-            const osgDB::Options* dbOptions   =0L );
+            const osgDB::Options* readOptoins =0L );
 
         /**
          * Sets a new style and rebuilds the node.
@@ -61,7 +61,7 @@ namespace osgEarth { namespace Annotation
 
     public: // LocalizedNode
         
-        virtual void setScale( const osg::Vec3f& scale );
+    //    virtual void setScale( const osg::Vec3f& scale );
 
     public:
 
@@ -70,25 +70,23 @@ namespace osgEarth { namespace Annotation
          * (internal method).
          */
         ModelNode(
-            MapNode*              mapNode,
             const Config&         conf,
-            const osgDB::Options* dbOptions );
+            const osgDB::Options* readOptions );
 
         virtual Config getConfig() const;
-
-    protected: // LocalizedNode
-
-        virtual osg::MatrixTransform* getTransform() { return _xform.get(); }
 
     protected:
 
         Style _style;
-        osg::ref_ptr<const osgDB::Options> _dbOptions;
-        osg::ref_ptr<osg::MatrixTransform> _xform;
+        osg::ref_ptr<const osgDB::Options> _readOptions;
 
-        void init();
+        void compileModel();
 
         virtual ~ModelNode() { }
+
+    private:
+
+        void construct();
     };
 
 } } // namespace osgEarth::Annotation

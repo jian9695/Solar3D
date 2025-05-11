@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -51,6 +51,7 @@ namespace osgEarth
         static const Units DEGREES;
         static const Units NATO_MILS; // http://www.convertworld.com/en/angle/Mil+(NATO).html
         static const Units RADIANS;
+        static const Units DECIMAL_HOURS;
 
         // temporal
         static const Units DAYS;
@@ -157,7 +158,7 @@ namespace osgEarth
         // Maks a new unit definition (SPEED)
         Units( const std::string& name, const std::string& abbr, const Units& distance, const Units& time );
 
-        Units() : _type(TYPE_INVALID) { }
+        Units() : _type(TYPE_INVALID), _toBase(0.0), _distance(0L), _time(0L) { }
 
     private:
 
@@ -180,6 +181,12 @@ namespace osgEarth
         // called by Registry to register system units
         static void registerAll(class Registry* registry);
         friend class Registry;
+
+    public:
+
+        // returns 0 upon success, error code on failure
+        static int unitTest();
+
     };
     
     template<typename T>
@@ -191,12 +198,12 @@ namespace osgEarth
         qualified_double<T>( const T& rhs ) : _value(rhs._value), _units(rhs._units) { }
 
         // parses the qualified number from a parseable string (e.g., "123km")
-        qualified_double<T>(const std::string& parseable, const Units& defaultUnits) {
+        qualified_double<T>(const std::string& parseable, const Units& defaultUnits) : _value(0.0), _units(defaultUnits) {
             Units::parse( parseable, _value, _units, defaultUnits );
         }
 
         // loads the qualified number from an old-school config (e.g., { value="123" units="km" } )
-        qualified_double<T>( const Config& conf, const Units& defaultUnits ) {
+        qualified_double<T>( const Config& conf, const Units& defaultUnits ) : _value(0.0) {
             if ( conf.hasValue("value") ) {
                 _value = conf.value<double>("value", 0.0);
                 if ( !Units::parse( conf.value("units"), _units ) )
@@ -338,17 +345,17 @@ namespace osgEarth
     
 
     // Config specializations:
-
-    template <> inline
-    void Config::addIfSet<Distance>( const std::string& key, const optional<Distance>& opt ) {
-        if ( opt.isSet() ) { add(key, opt->asParseableString()); }
+    
+    template<> inline
+    void Config::set<Distance>( const std::string& key, const Distance& obj ) {
+        set(key, obj.asParseableString());
     }
     template<> inline
-    void Config::updateIfSet<Distance>( const std::string& key, const optional<Distance>& opt ) {
-        if ( opt.isSet() ) { update(key, opt->asParseableString()); }
+    void Config::set<Distance>( const std::string& key, const optional<Distance>& opt ) {
+        if ( opt.isSet() ) { set(key, opt.get()); }
     }
     template<> inline
-    bool Config::getIfSet<Distance>( const std::string& key, optional<Distance>& output ) const {
+    bool Config::get<Distance>( const std::string& key, optional<Distance>& output ) const {
         if ( hasValue(key) ) { output = Distance(value(key)); return true; }
         else return false;
     }
@@ -362,17 +369,17 @@ namespace osgEarth
             return default_value;
     }
     
-
-    template <> inline
-    void Config::addIfSet<Angle>( const std::string& key, const optional<Angle>& opt ) {
-        if ( opt.isSet() ) { add(key, opt->asParseableString()); }
+    
+    template<> inline
+    void Config::set<Angle>( const std::string& key, const Angle& opt ) {
+        set(key, opt.asParseableString());
     }
     template<> inline
-    void Config::updateIfSet<Angle>( const std::string& key, const optional<Angle>& opt ) {
-        if ( opt.isSet() ) { update(key, opt->asParseableString()); }
+    void Config::set<Angle>( const std::string& key, const optional<Angle>& opt ) {
+        if ( opt.isSet() ) { set(key, opt.get()); }
     }
     template<> inline
-    bool Config::getIfSet<Angle>( const std::string& key, optional<Angle>& output ) const {
+    bool Config::get<Angle>( const std::string& key, optional<Angle>& output ) const {
         if ( hasValue(key) ) { output = Angle(value(key)); return true; }
         else return false;
     }
@@ -386,18 +393,18 @@ namespace osgEarth
             return default_value;
     }
 
-    template <> inline
-    void Config::addIfSet<Duration>( const std::string& key, const optional<Duration>& opt ) {
-        if ( opt.isSet() ) { add(key, opt->asParseableString()); }
+    
+    template<> inline
+    void Config::set<Duration>( const std::string& key, const Duration& opt ) {
+        set(key, opt.asParseableString());
+    }
+    template<> inline
+    void Config::set<Duration>( const std::string& key, const optional<Duration>& opt ) {
+        if ( opt.isSet() ) { set(key, opt.get()); }
     }
 
     template<> inline
-    void Config::updateIfSet<Duration>( const std::string& key, const optional<Duration>& opt ) {
-        if ( opt.isSet() ) { update(key, opt->asParseableString()); }
-    }
-
-    template<> inline
-    bool Config::getIfSet<Duration>( const std::string& key, optional<Duration>& output ) const {
+    bool Config::get<Duration>( const std::string& key, optional<Duration>& output ) const {
         if ( hasValue(key) ) { output = Duration(value(key)); return true; }
         else return false;
     }
@@ -411,18 +418,16 @@ namespace osgEarth
             return default_value;
     }
 
-    template <> inline
-    void Config::addIfSet<Speed>( const std::string& key, const optional<Speed>& opt ) {
-        if ( opt.isSet() ) { add(key, opt->asParseableString()); }
-    }
-
     template<> inline
-    void Config::updateIfSet<Speed>( const std::string& key, const optional<Speed>& opt ) {
-        if ( opt.isSet() ) { update(key, opt->asParseableString()); }
+    void Config::set<Speed>( const std::string& key, const Speed& opt ) {
+        set(key, opt.asParseableString());
     }
-
     template<> inline
-    bool Config::getIfSet<Speed>( const std::string& key, optional<Speed>& output ) const {
+    void Config::set<Speed>( const std::string& key, const optional<Speed>& opt ) {
+        if ( opt.isSet() ) { set(key, opt.get()); }
+    }
+    template<> inline
+    bool Config::get<Speed>( const std::string& key, optional<Speed>& output ) const {
         if ( hasValue(key) ) { output = Speed(value(key)); return true; }
         else return false;
     }
@@ -435,19 +440,17 @@ namespace osgEarth
         else
             return default_value;
     }
-
-    template <> inline
-    void Config::addIfSet<ScreenSize>( const std::string& key, const optional<ScreenSize>& opt ) {
-        if ( opt.isSet() ) { add(key, opt->asParseableString()); }
-    }
-
+    
     template<> inline
-    void Config::updateIfSet<ScreenSize>( const std::string& key, const optional<ScreenSize>& opt ) {
-        if ( opt.isSet() ) { update(key, opt->asParseableString()); }
+    void Config::set<ScreenSize>( const std::string& key, const ScreenSize& opt ) {
+        set(key, opt.asParseableString());
     }
-
     template<> inline
-    bool Config::getIfSet<ScreenSize>( const std::string& key, optional<ScreenSize>& output ) const {
+    void Config::set<ScreenSize>( const std::string& key, const optional<ScreenSize>& opt ) {
+        if ( opt.isSet() ) { set(key, opt.get()); }
+    }
+    template<> inline
+    bool Config::get<ScreenSize>( const std::string& key, optional<ScreenSize>& output ) const {
         if ( hasValue(key) ) { output = ScreenSize(value(key)); return true; }
         else return false;
     }

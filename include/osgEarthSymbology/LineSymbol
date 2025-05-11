@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -55,16 +55,21 @@ namespace osgEarth { namespace Symbology
         optional<float>& creaseAngle() { return _creaseAngle; }
         const optional<float>& creaseAngle() const { return _creaseAngle; }
 
+        /** URI of an image to load and use to texture lines */
+        optional<StringExpression>& imageURI() { return _imageURI; }
+        const optional<StringExpression>& imageURI() const { return _imageURI; }
+
     public:
         virtual Config getConfig() const;
         virtual void mergeConfig( const Config& conf );
         static void parseSLD(const Config& c, class Style& style);
 
     protected:
-        optional<Stroke>   _stroke;
-        optional<unsigned> _tessellation;
-        optional<float>    _creaseAngle;
-        optional<Distance> _tessellationSize;
+        optional<Stroke>           _stroke;
+        optional<unsigned>         _tessellation;
+        optional<float>            _creaseAngle;
+        optional<Distance>         _tessellationSize;
+        optional<StringExpression> _imageURI;
     };
 
 } } // namespace osgEarth::Symbology

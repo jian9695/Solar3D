@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+/* osgEarth - Geospatial SDK for OpenSceneGraph
 * Copyright 2008-2014 Pelican Mapping
 * http://osgearth.org
 *
@@ -23,36 +23,42 @@
 #include "RenderBindings"
 #include "Loader"
 #include "MaskGenerator"
-#include "MPTexture"
-#include "ProxySurfaceNode"
+#include "TileRenderModel"
+
+#include <osgEarth/TerrainTileModel>
+#include <osgEarth/TerrainTileNode>
 
 #include <OpenThreads/Atomic>
-#include <osgEarth/TerrainTileNode>
 #include <vector>
 
+namespace osg {
+    class CullStack;
+}
 namespace osgUtil {
     class CullVisitor;
 }
 
 namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
 {
+    class LoadTileData;
     class EngineContext;
     class SurfaceNode;
-    class ProxySurfaceNode;
     class SelectionInfo;
+    class TerrainCuller;
 
     /**
      * TileNode represents a single tile. TileNode has 5 children:
      * one SurfaceNode that renders the actual tile content under a MatrixTransform;
      * and four TileNodes representing the LOD+1 quadtree tiles under this tile.
      */
-    class TileNode : public osg::Group
+    class TileNode : public osg::Group,
+                     public osgEarth::TerrainTileNode
     {
     public:
         TileNode();
 
         /** TileKey of the key representing the data in this node. */
-        const TileKey& getTileKey() const { return _key; }
+        const TileKey& getKey() const { return _key; }
 
         /** Sets the map revision that this tile should be using. */
         void setMapRevision(Revision rev) { } // nyi - check for need
@@ -61,79 +67,127 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
         void setDirty(bool value);
 
         /** Creates the geometry and state for this tilenode. */
-        void create(const TileKey& key, EngineContext* context);
-
-        /** Whether this node has enough data to traverse. */
-        bool isReadyToTraverse() const;
+        void create(const TileKey& key, TileNode* parent, EngineContext* context);
 
         /** Whether the tile is expired; i.e. has not been visited in some time. */
-        bool isDormant(osg::NodeVisitor& nv) const;
+        bool isDormant(const osg::FrameStamp*) const;
 
-        /** Load (or continue loading) content for the tiles in this quad. */
-        void load(osg::NodeVisitor& nv);
+        /** Whether all the subtiles are this tile are dormant (have not been visited recently) */
+        bool areSubTilesDormant(const osg::FrameStamp*) const;
+
+        /** Removed any sub tiles from the scene graph. Please call from a safe thread only (update) */
+        void removeSubTiles();
 
         /** Notifies this tile that another tile has come into existence. */
-        void notifyOfArrival(TileNode* that) { } // nyi - todo
-
-        /** Set inheritance matrices as necessary. Return true is changed were made. */
-        bool inheritState(EngineContext* context);
+        void notifyOfArrival(TileNode* that);
 
         /** Returns the tile's parent; convenience function */
         TileNode* getParentTile() { return dynamic_cast<TileNode*>(getParent(0)); }
-        
-        /** merge in new stuff from a state set. */
-        void mergeStateSet(osg::StateSet* stateSet, MPTexture* mptex, const RenderBindings& bindings);
 
-        /** Access to the multipass texture attribute */
-        MPTexture* getMPTexture() const { return _mptex.get(); }
+        /** Returns the SurfaceNode under this node. */
+        SurfaceNode* getSurfaceNode() { return _surface.get(); }
 
         /** Elevation data for this node along with its scale/bias matrix; needed for bounding box */
         void setElevationRaster(const osg::Image* image, const osg::Matrixf& matrix);
         const osg::Image* getElevationRaster() const;
         const osg::Matrixf& getElevationMatrix() const;
 
+        // access to subtiles
+        TileNode* getSubTile(unsigned i) { return static_cast<TileNode*>(_children[i].get()); }
+        const TileNode* getSubTile(unsigned i) const { return static_cast<TileNode*>(_children[i].get()); }
+
+        virtual double getMinimumExpirationTime() const { return _minExpiryTime; }
+        virtual void setMinimumExpirationTime(double minExpiryTime) { _minExpiryTime = minExpiryTime; }
+        
+        virtual unsigned int getMinimumExpirationFrames() const { return _minExpiryFrames; }
+        virtual void setMinimumExpirationFrames(unsigned int minExpiryFrames) { _minExpiryFrames = minExpiryFrames; }
+
+        virtual void loadChildren();
+
+        /** Merge new Tile model data into this tile's rendering data model. */
+        void merge(const TerrainTileModel* dataModel, const RenderBindings& bindings);
+
+        /** Access the rendering model for this tile */
+        TileRenderModel& renderModel() { return _renderModel; }
+
+        const osg::Vec4f& getTileKeyValue() const { return _tileKeyValue; }
+
+        const osg::Vec2f& getMorphConstants() const { return _morphConstants; }
+
+        void loadSync();
+
+        std::set<UID>& newLayers() { return _newLayers; }
+
+        void refreshSharedSamplers(const RenderBindings& bindings);
+
+        bool isDirty() const { return _dirty; }
+        
     public: // osg::Node
 
         osg::BoundingSphere computeBound() const;
 
         void traverse(osg::NodeVisitor& nv);
 
+        void resizeGLObjectBuffers(unsigned maxSize);
+
         void releaseGLObjects(osg::State* state) const;
 
     protected:
         TileKey                            _key;
         osg::ref_ptr<SurfaceNode>          _surface;
-        osg::ref_ptr<SurfaceNode>          _landCover;
-        osg::ref_ptr<ProxySurfaceNode>     _surfaceProxy;
-        osg::ref_ptr<Loader::Request>      _loadRequest;
-        osg::ref_ptr<Loader::Request>      _expireRequest;
+        osg::ref_ptr<SurfaceNode>          _patch;
+        osg::ref_ptr<LoadTileData>         _loadRequest;
+        osg::ref_ptr<EngineContext>        _context;
         Threading::Mutex                   _mutex;
         bool                               _dirty;
         OpenThreads::Atomic                _lastTraversalFrame;
+        double                             _lastTraversalTime;
         unsigned                           _count;
-        osg::ref_ptr<MPTexture>            _mptex;
-        osg::ref_ptr<osg::StateSet>        _payloadStateSet;
+        bool                               _childrenReady;
+        unsigned int                       _minExpiryFrames;
+        double                             _minExpiryTime;
+        mutable osg::Vec4f                 _tileKeyValue;
+        osg::Vec2f                         _morphConstants;
+        TileRenderModel                    _renderModel;
+        std::set<UID>                      _newLayers;
+        bool                               _empty;
+        bool                               _isRootTile;
+        bool                               _imageUpdatesActive;
+        TileKey                            _subdivideTestKey;
 
-        TileNode* getSubTile(unsigned i) { return dynamic_cast<TileNode*>(getChild(i)); }
+        osg::observer_ptr<TileNode> _eastNeighbor;
+        osg::observer_ptr<TileNode> _southNeighbor;
+        bool _stitchNormalMap;
+
+    private:
+
+        void updateNormalMap();
 
         void createChildren(EngineContext* context);
 
-        void expireChildren(osg::NodeVisitor& nv);
+        /** Returns false if the Surface node fails visiblity test */
+        bool cull(TerrainCuller*);
 
-    private:
-        void cull(osg::NodeVisitor& nv);
-        void cullSurface(osgUtil::CullVisitor* nv);
+        bool accept_cull(TerrainCuller*);
 
-        bool  shouldSubDivide(osg::NodeVisitor& nv, const SelectionInfo& selectionInfo, float fZoomFactor);
-        float getVisibilityRangeHint(unsigned firstLOD) const;
+        bool cull_spy(TerrainCuller*);
 
-        void updateTileUniforms(const SelectionInfo& selectionInfo);
-        void createTileUniforms();
+        bool accept_cull_spy(TerrainCuller*);
+
+        bool shouldSubDivide(TerrainCuller*, const SelectionInfo&);
+
+        // whether this tile should render the given pass
+        bool passInLegalRange(const RenderingPass&) const;
+
+        /** Load (or continue loading) content for the tiles in this quad. */
+        void load(TerrainCuller*);
+
+        /** Ensure that inherited data from the parent node is up to date. */
+        void refreshInheritedData(TileNode* parent, const RenderBindings& bindings);
 
         osg::ref_ptr<osg::Uniform> _tileKeyUniform;
         osg::ref_ptr<osg::Uniform> _tileMorphUniform;
         osg::ref_ptr<osg::Uniform> _tileGridDimsUniform;
-        //osg::ref_ptr<osg::Uniform> _tileExtentsUniform;
     };
 
     typedef std::vector< osg::ref_ptr<TileNode> > TileNodeVector;

@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 #include <osgEarthSymbology/Symbol>
 #include <osgEarth/URI>
 #include <osg/TexEnv>
-#include <osg/Texture2DArray>
+#include <osg/Image>
 
 namespace osgEarth { namespace Symbology
 {
@@ -52,7 +52,11 @@ namespace osgEarth { namespace Symbology
         /**
          * Creates an image for this SkinResource.
          */
-        osg::Image* createImage( const osgDB::Options* options ) const;
+        osg::ref_ptr<osg::Image> createImage( const osgDB::Options* options ) const;
+        
+        osg::Texture* createTexture(const osgDB::Options* readOptions) const;
+
+        osg::Texture* createTexture(osg::Image* image) const;
 
         /** 
          * A key string that can uniquely identify this object for the purposes
@@ -61,6 +65,10 @@ namespace osgEarth { namespace Symbology
         std::string getUniqueID() const;
 
     public:
+        /** inline image (not serializable) */
+        osg::ref_ptr<osg::Image>& image() { return _image; }
+        const osg::ref_ptr<osg::Image>& image() const { return _image; }
+
         /** Source location of the actual texture image.  */
         optional<URI>& imageURI() { return _imageURI; }
         const optional<URI>& imageURI() const { return _imageURI; }
@@ -113,6 +121,14 @@ namespace osgEarth { namespace Symbology
         optional<unsigned> maxTextureSpan() { return _maxTexSpan; }
         const optional<unsigned> maxTextureSpan() const { return _maxTexSpan; }
 
+        /** Whether this image is suitable for texture atlasing */
+        optional<bool>& atlasHint() { return _atlasHint; }
+        const optional<bool>& atlasHint() const { return _atlasHint; }
+
+        /** Options string to pass in when reading the image */
+        optional<std::string>& readOptions() { return _readOptions; }
+        const optional<std::string>& readOptions() const { return _readOptions; }
+
     public: // serialization methods
 
         virtual Config getConfig() const;
@@ -138,6 +154,10 @@ namespace osgEarth { namespace Symbology
         optional<unsigned>          _imageLayer;
         optional<float>             _imageScaleS;
         optional<float>             _imageScaleT;
+        optional<bool>              _atlasHint;
+        optional<std::string>       _readOptions;
+
+        osg::ref_ptr<osg::Image>    _image;
     };
 
 
@@ -203,37 +223,6 @@ namespace osgEarth { namespace Symbology
 
     typedef std::vector< osg::ref_ptr<SkinResource> > SkinResourceVector;
 
-#if 0
-    /**
-     * Utility class that builds a Texture2DArray from a list of SkinResources
-     */
-    class OSGEARTHSYMBOLOGY_EXPORT SkinTextureArray : public osg::Referenced
-    {
-    public:
-        SkinTextureArray();
-
-        /**
-         * Gets the Texture2DArray for this SkinTextureArray
-         */
-        osg::Texture2DArray* getTexture();
-
-        /**
-         * Gets the index into the texture array for the given SkinResource.
-         */
-        int getSkinIndex( const SkinResource* skin );
-
-        /**
-         * Builds a Texture2DArray from the given SkinResources.
-         */
-        void build(SkinResourceVector& skins, const osgDB::Options* dbOptions);
-
-    protected:
-
-        typedef std::map< std::string, int > LayerIndex;
-        LayerIndex _layerIndex;
-        osg::ref_ptr< osg::Texture2DArray > _texture;
-    };
-#endif
 
 } } // namespace osgEarth::Symbology
 

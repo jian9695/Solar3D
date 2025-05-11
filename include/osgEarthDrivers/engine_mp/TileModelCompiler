@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -30,6 +30,9 @@
 #include <osgEarth/Map>
 #include <osgEarth/Locators>
 #include <osgEarth/Progress>
+#include <osgEarth/MaskLayer>
+#include <osgEarth/ModelLayer>
+#include <osgEarth/MapFrame>
 
 #include <osg/Node>
 #include <osg/StateSet>
@@ -96,8 +99,8 @@ namespace osgEarth { namespace Drivers { namespace MPTerrainEngine
             ProgressCallback* progress);
 
     protected:
-        const MaskLayerVector&                    _maskLayers;
-        const ModelLayerVector&                   _modelLayers;
+        MaskLayerVector                           _maskLayers;
+        ModelLayerVector                          _modelLayers;
         int                                       _textureImageUnit;
         bool                                      _optimizeTriOrientation;
         const MPTerrainEngineOptions&             _options;

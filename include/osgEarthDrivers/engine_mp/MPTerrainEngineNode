@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -20,11 +20,12 @@
 #define OSGEARTH_DRIVERS_MP_TERRAIN_ENGINE_ENGINE_NODE_H 1
 
 #include <osgEarth/TerrainEngineNode>
-#include <osgEarth/TextureCompositor>
+#include <osgEarth/TerrainResources>
 #include <osgEarth/Map>
 #include <osgEarth/Revisioning>
 #include <osgEarth/ThreadingUtils>
 #include <osgEarth/Containers>
+#include <osgEarth/ResourceReleaser>
 
 #include "MPTerrainEngineOptions"
 #include "KeyNodeFactory"
@@ -78,14 +79,13 @@ namespace osgEarth { namespace Drivers { namespace MPTerrainEngine
 
     public: // internal TerrainEngineNode
 
-        virtual void preInitialize( const Map* map, const TerrainOptions& options );
-        virtual void postInitialize( const Map* map, const TerrainOptions& options );
-        virtual const TerrainOptions& getTerrainOptions() const { return _terrainOptions; }
-        virtual osg::BoundingSphere computeBound() const;
+        void setMap(const Map* map, const TerrainOptions& options);
+        const TerrainOptions& getTerrainOptions() const { return _terrainOptions; }
 
     public: // osg::Node
 
         void traverse(osg::NodeVisitor& nv);
+        osg::BoundingSphere computeBound() const;
 
     public: // MapCallback adapter functions
 
@@ -96,16 +96,15 @@ namespace osgEarth { namespace Drivers { namespace MPTerrainEngine
 
     public: // statics    
         static void registerEngine( MPTerrainEngineNode* engineNode );
-        static void unregisterEngine( UID uid );
         static void getEngineByUID( UID uid, osg::ref_ptr<MPTerrainEngineNode>& output );
 
     public:
-        class ElevationChangedCallback : public ElevationLayerCallback
+        class ElevationChangedCallback : public VisibleLayerCallback
         {
         public:
             ElevationChangedCallback( MPTerrainEngineNode* terrain );
 
-           virtual void onVisibleChanged( TerrainLayer* layer );
+            void onVisibleChanged(VisibleLayer* layer);
 
             MPTerrainEngineNode* _terrain;
             friend class MPTerrainEngineNode;
@@ -133,7 +132,7 @@ namespace osgEarth { namespace Drivers { namespace MPTerrainEngine
         void toggleElevationLayer( ElevationLayer* layer );
 
         void moveImageLayer( unsigned int oldIndex, unsigned int newIndex );
-        void moveElevationLayer( unsigned int oldIndex, unsigned int newIndex );
+        void moveElevationLayer( ElevationLayer* layer );
         
         void updateState(); 
 
@@ -149,8 +148,6 @@ namespace osgEarth { namespace Drivers { namespace MPTerrainEngine
         bool               _batchUpdateInProgress;
         bool               _refreshRequired;
         bool               _stateUpdateRequired;
-        bool               _rootTilesRegistered;
-        Threading::Mutex   _rootTilesRegisteredMutex;
 
         osg::ref_ptr< ElevationChangedCallback > _elevationCallback;
 
@@ -160,7 +157,8 @@ namespace osgEarth { namespace Drivers { namespace MPTerrainEngine
 
         // node registry is shared across all threads.
         osg::ref_ptr<TileNodeRegistry> _liveTiles;      // tiles in the scene graph.
-        osg::ref_ptr<TileNodeRegistry> _deadTiles;        // tiles that used to be in the scene graph.
+        //osg::ref_ptr<TileNodeRegistry> _deadTiles;        // tiles that used to be in the scene graph.
+        osg::ref_ptr<ResourceReleaser> _releaser;
 
         PerThread< osg::ref_ptr<KeyNodeFactory> > _perThreadKeyNodeFactories;
         KeyNodeFactory* getKeyNodeFactory();
@@ -172,8 +170,6 @@ namespace osgEarth { namespace Drivers { namespace MPTerrainEngine
         int        _secondaryUnit;
         int        _elevationTextureUnit;
         int        _normalMapUnit;
-
-        osg::Uniform* _verticalScaleUniform;
 
         osg::ref_ptr< TileModelFactory > _tileModelFactory;
 

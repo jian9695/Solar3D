@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -20,6 +20,7 @@
 #ifndef OSGEARTHSYMBOLOGY_TEXT_SYMBOL_H
 #define OSGEARTHSYMBOLOGY_TEXT_SYMBOL_H 1
 
+#include <osgText/Text>
 #include <osgEarthSymbology/Symbol>
 #include <osgEarthSymbology/Expression>
 #include <osgEarthSymbology/Fill>
@@ -53,16 +54,16 @@ namespace osgEarth { namespace Symbology
             ALIGN_RIGHT_TOP,
             ALIGN_RIGHT_CENTER,
             ALIGN_RIGHT_BOTTOM,
-            
+
             ALIGN_LEFT_BASE_LINE,
             ALIGN_CENTER_BASE_LINE,
             ALIGN_RIGHT_BASE_LINE,
-        
+
             ALIGN_LEFT_BOTTOM_BASE_LINE,
             ALIGN_CENTER_BOTTOM_BASE_LINE,
             ALIGN_RIGHT_BOTTOM_BASE_LINE,
-        
-            ALIGN_BASE_LINE = ALIGN_LEFT_BASE_LINE /// default.        
+
+            ALIGN_BASE_LINE = ALIGN_LEFT_BASE_LINE /// default.
         };
 
         enum Layout {
@@ -91,6 +92,14 @@ namespace osgEarth { namespace Symbology
         optional<float>& haloOffset() { return _haloOffset; }
         const optional<float>& haloOffset() const { return _haloOffset; }
 
+        /** Halo backdrop type */
+        optional<osgText::Text::BackdropType>& haloBackdropType() { return _haloBackdropType; }
+        const optional<osgText::Text::BackdropType>& haloBackdropType() const { return _haloBackdropType; }
+
+        /** Halo backdrop implementation */
+        optional<osgText::Text::BackdropImplementation>& haloImplementation() { return _haloImplementation; }
+        const optional<osgText::Text::BackdropImplementation>& haloImplementation() const { return _haloImplementation; }
+
         /** Name of text font. */
         optional<std::string>& font() { return _font; }
         const optional<std::string>& font() const { return _font; }
@@ -111,6 +120,14 @@ namespace osgEarth { namespace Symbology
         optional<osg::Vec2s>& pixelOffset() { return _pixelOffset; }
         const optional<osg::Vec2s>& pixelOffset() const { return _pixelOffset; }
 
+        /** On screen rotation **/
+        optional<NumericExpression>& onScreenRotation() { return _onScreenRotation; }
+        const optional<NumericExpression>& onScreenRotation() const { return _onScreenRotation; }
+
+        /** Label orientation for following a fixed course on the map. */
+        optional<NumericExpression>& geographicCourse() { return _geographicCourse; }
+        const optional<NumericExpression>& geographicCourse() const { return _geographicCourse; }
+
         /** Alignment of the label relative to (0,0) pixels */
         optional<Alignment>& alignment() { return _alignment; }
         const optional<Alignment>& alignment() const { return _alignment; }
@@ -118,10 +135,6 @@ namespace osgEarth { namespace Symbology
         /** Layout of the label*/
         optional<Layout>& layout() { return _layout; }
         const optional<Layout>& layout() const { return _layout; }
-
-        /** Whether to remove duplicates when drawing multiple labels. */
-        optional<bool>& removeDuplicateLabels() { return _removeDuplicateLabels; }
-        const optional<bool>& removeDuplicateLabels() const { return _removeDuplicateLabels; }
 
         /** Whether to enable decluttering on the text, if applicable */
         optional<bool>& declutter() { return _declutter; }
@@ -152,12 +165,15 @@ namespace osgEarth { namespace Symbology
         optional<Fill>              _fill;
         optional<Stroke>            _halo;
         optional<float>             _haloOffset;
+        optional<osgText::Text::BackdropType> _haloBackdropType;
+        optional<osgText::Text::BackdropImplementation> _haloImplementation;
         optional<std::string>       _font;
         optional<NumericExpression> _size;
         optional<StringExpression>  _content;
         optional<NumericExpression> _priority;
-        optional<bool>              _removeDuplicateLabels;
         optional<osg::Vec2s>        _pixelOffset;
+        optional<NumericExpression> _onScreenRotation;
+        optional<NumericExpression> _geographicCourse;
         optional<std::string>       _provider;
         optional<Encoding>          _encoding;
         optional<Alignment>         _alignment;

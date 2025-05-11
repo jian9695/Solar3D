@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -73,13 +73,17 @@ namespace osgEarth { namespace Annotation
         AnnotationNode* createOne( 
             MapNode*              mapNode, 
             const Config&         conf,
-            const osgDB::Options* dbOptions, 
-            bool                  declutter =false ) const;
+            const osgDB::Options* dbOptions) const;
     };
 
     // Macro used to register new annotation types.
 #define OSGEARTH_REGISTER_ANNOTATION( KEY, CLASSNAME ) \
+    extern "C" void osgearth_annotation_##KEY(void) {} \
     static AnnotationRegistrationProxy< CLASSNAME > s_osgEarthAnnotationRegistrationProxy##KEY( #KEY )
+    
+#define USE_OSGEARTH_ANNOTATION( KEY ) \
+    extern "C" void osgearth_annotation_##KEY(void); \
+    static osgDB::PluginFunctionProxy proxy_osgearth_annotation_##KEY(osgearth_annotation_##KEY);
 
 
     //--------------------------------------------------------------------
@@ -88,8 +92,7 @@ namespace osgEarth { namespace Annotation
     // (used by OSGEARTH_REGISTER_ANNOTATION macro)
     class AnnotationFactory {
     public:
-        virtual AnnotationNode* create(
-            MapNode*              mapNode, 
+        virtual AnnotationNode* create( 
             const Config&         conf, 
             const osgDB::Options* dbOptions) const =0;
 
@@ -100,7 +103,7 @@ namespace osgEarth { namespace Annotation
     template<typename T>
     struct AnnotationRegistrationProxy : public AnnotationFactory {
         AnnotationRegistrationProxy(const std::string& key) { AnnotationRegistry::instance()->add(key, this); }
-        AnnotationNode* create(MapNode* mapNode, const Config& conf, const osgDB::Options* options) const { return new T(mapNode, conf, options); }
+        AnnotationNode* create(const Config& conf, const osgDB::Options* options) const { return new T(conf, options); }
     };
 
 } } // namespace osgEarth::Annotation

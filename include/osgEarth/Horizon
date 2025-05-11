@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -25,14 +25,29 @@
 #include <osg/NodeCallback>
 #include <osg/Vec3d>
 #include <osg/Shape>
+#include <osg/observer_ptr>
+#include <osg/Version>
+#include <osg/ValueObject>
+#include <osg/MatrixTransform>
 
 namespace osgEarth
 {
     /**
      * Horizon operations (for a geocentric map).
      */
-    class OSGEARTH_EXPORT Horizon
+    class OSGEARTH_EXPORT Horizon : public osg::Object
     {
+    public:
+        META_Object(osgEarth, Horizon);
+
+        // Retrieve a Horizon object from the NodeVisitor. Returns NULL
+        // if this operation is not supported.
+        static Horizon* get(osg::NodeVisitor& nv);
+
+        // Stores this object in the NodeVisitor. Returns false if the
+        // operation is not supported.
+        bool put(osg::NodeVisitor& nv);
+
     public:
         /** Construct a horizon using a default WGS84 ellipsoid model. */
         Horizon();
@@ -40,10 +55,11 @@ namespace osgEarth
         /** Construct a horizon providing the ellipsoid model. */
         Horizon(const osg::EllipsoidModel& ellipsoid);
 
-        /** Copy */
-        Horizon(const Horizon& rhs);
+        /** Construct a horizon from a spatial reference. */
+        Horizon(const SpatialReference* srs);
 
-        virtual ~Horizon() { }
+        /** Copy */
+        Horizon(const Horizon& rhs, const osg::CopyOp& op = osg::CopyOp::DEEP_COPY_ALL);
 
         /**
          * Ellipsoid model to use for occlusion testing
@@ -51,15 +67,29 @@ namespace osgEarth
         void setEllipsoid(const osg::EllipsoidModel& ellipsoid);
 
         /**
-         * Sets the eye position to use when testing for occlusion.
+         * Set the minimum allowable height-above-ellipsoid to consider when doing
+         * horizon visibility testing.
          */
-        void setEye(const osg::Vec3d& eyeECEF);
+        void setMinHAE(double meters);
+        double getMinHAE() const { return _minHAE; }
+
+        /**
+         * Sets the eye position to use when testing for occlusion.
+         * Returns true if the value changed; false if it was the same
+         */
+        bool setEye(const osg::Vec3d& eyeECEF);
         
         /**
          * Whether a point is visible over the horizon.
          * Specify an optional radius to test a sphere.
          */
         bool isVisible(const osg::Vec3d& point, double radius =0.0) const;
+
+        /**
+         * Whether "target" with bounding radius "radius" is visible from "eye".
+         * This function does not require you to call setEye.
+         */
+        bool isVisible(const osg::Vec3d& eye, const osg::Vec3d& target, double radius) const;
                 
         /**
          * Whether a bounding sphere is visible over the horizon.
@@ -80,9 +110,22 @@ namespace osgEarth
          * normal pointing at the eye. 
          */
         bool getPlane(osg::Plane& out_plane) const;
+
+        //! Caclulate distance from eye to visible horizon
+        double getDistanceToVisibleHorizon() const;
+
+        /**
+         * Gets the radius of the ellipsoid under the eye
+         */
+        double getRadius() const;
         
     protected:
 
+        virtual ~Horizon() { }
+
+        osg::EllipsoidModel _em;
+
+        bool       _valid;
         osg::Vec3d _eye;
         osg::Vec3d _eyeUnit;
         osg::Vec3d _VC;       
@@ -94,7 +137,8 @@ namespace osgEarth
 
         osg::Vec3d _scale;
         osg::Vec3d _scaleInv;
-        osg::Vec3d _scaleToMinHAE;
+        double     _minVCmag;
+        double     _minHAE;
     };
 
 
@@ -121,10 +165,20 @@ namespace osgEarth
         bool getEnabled() const { return _enabled; }
 
         /**
+         * Sets an alternate node whose bounds will be used to perform
+         * the culling test. By default, the culling test is performed
+         * against the node to which this callback is attached.
+         */
+        void setProxyNode(osg::Node* node) { _proxy = node; }
+        osg::observer_ptr<osg::Node>& getProxyNode() { return _proxy; }
+        const osg::observer_ptr<osg::Node>& getProxyNode() const { return _proxy; }
+
+        /**
          * Horizon to cull againts
          */
-        void setHorizon(const Horizon& horizon) { _horizon = horizon; }
-        const Horizon& getHorizon() const { return _horizon; }
+        void setHorizon(Horizon* horizon) { _horizonProto = horizon; }
+        Horizon* getHorizon() { return _horizonProto.get(); }
+        const Horizon* getHorizon() const { return _horizonProto.get(); }
 
     public: // osg::NodeCallback
         void operator()(osg::Node* node, osg::NodeVisitor* nv);
@@ -132,12 +186,23 @@ namespace osgEarth
     protected:
         virtual ~HorizonCullCallback() { }
 
+        bool isVisible(osg::Node* node, osg::NodeVisitor* nv);
+
     private:
-        bool    _centerOnly;
-        bool    _enabled;
-        Horizon _horizon;
+        bool _centerOnly;
+        bool _enabled;
+        osg::ref_ptr<Horizon> _horizonProto;
+        osg::observer_ptr<osg::Node> _proxy;
     };
 
+
+    // Debugging node for visualizing the horizon in stealth mode
+    class OSGEARTH_EXPORT HorizonNode : public osg::MatrixTransform
+    {
+    public:
+        HorizonNode();
+        void traverse(osg::NodeVisitor& nv);
+    };
 
 }
 

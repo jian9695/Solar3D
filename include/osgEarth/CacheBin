@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -34,7 +34,7 @@ namespace osgEarth
      * application modules to compartmentalize their data withing a single
      * cache location.
      */
-    class /*no export*/ CacheBin : public osg::Referenced
+    class OSGEARTH_EXPORT CacheBin : public osg::Referenced
     {
     public:
         /** returned by the getRecordStatus() function */
@@ -51,7 +51,7 @@ namespace osgEarth
          * @param driver ReaderWriter that serializes data for this caching bin.
          */
         CacheBin( const std::string& binID )
-            : _binID(binID), _hashKeys(false), _minTime(0) { }
+            : _binID(binID), _hashKeys(true), _minTime(0) { }
 
         /** dtor */
         virtual ~CacheBin() { }
@@ -72,29 +72,41 @@ namespace osgEarth
          * Reads an object from the cache bin.
          * @param key     Lookup key to read         
          */
-        virtual ReadResult readObject(const std::string& key) =0;
+        virtual ReadResult readObject(const std::string& key, const osgDB::Options* dbo) =0;
 
         /**
          * Reads an image from the cache bin.
          * @param key     Lookup key to read         
          */
-        virtual ReadResult readImage(const std::string& key) =0;
+        virtual ReadResult readImage(const std::string& key, const osgDB::Options* dbo) = 0;
 
         /**
          * Reads a string buffer from the cache bin.
          * @param key    Lookup key to read.
          */
-        virtual ReadResult readString(const std::string& key) =0;
+        virtual ReadResult readString(const std::string& key, const osgDB::Options* dbo) = 0;
 
         /**
          * Writes an object (or an image) to the cache bin.
          * @param key    Lookup key to write to
          * @param object Object to serialize to the cache
          */
-        virtual bool write( 
-            const std::string& key, 
-            const osg::Object* object,
-            const Config&      metadata =Config() ) =0;
+        virtual bool write(
+            const std::string&    key,
+            const osg::Object*    object,
+            const Config&         metadata,
+            const osgDB::Options* dbo) = 0;
+
+        bool write(
+            const std::string&    key,
+            const osg::Object*    object,
+            const osgDB::Options* dbo) { return write(key, object, Config(), dbo); }
+
+        bool writeNode(
+            const std::string&    key,
+            osg::Node*            node,
+            const Config&         metadata,
+            const osgDB::Options* writeOptions);
 
         /**
          * Gets the status of a key, i.e. not found, valid or expired.
@@ -130,41 +142,35 @@ namespace osgEarth
         virtual bool clear() { return false; }
 
         /**
-         * Compacts the cache bin (where applicable)
+         * Compacts the cache bin (where applicable in the implementation,
+         * no-op otherwise)
          */
         virtual bool compact() { return false; }
 
         /**
          * Returns the approximate disk space being used by this cache,
-         * or 0 if unavailable.
+         * or 0 if the information is unavailable.
          */
         virtual unsigned getStorageSize() { return 0u; }
 
         /**
-         * Store this pointer in an options structure
+         * Metadata associated with a cache bin.
          */
-        void apply( osgDB::Options* options ) const {
-            if ( options ) options->setPluginData( "osgEarth::CacheBin", (void*)this );
-        }
-
+        void setMetadata(osg::Referenced* data) { _metadata = data; }
+        osg::Referenced* getMetadata() { return _metadata.get(); }
+        
         /**
-         * Retrieve pointer from an options struture
+         * If key-hashing is enabled, this method returns the hashed key
+         * corresponding to a raw input key.
          */
-        static CacheBin* get( const osgDB::Options* options ) {
-            return options ? const_cast<CacheBin*>(static_cast<const CacheBin*>(options->getPluginData("osgEarth::CacheBin"))) : 0L;
-        }
-
-
-    public: //deprecated
-
-        /** @deprecated - use clear */
-        bool purge() { return clear(); } // backwards compatibility
+        //virtual std::string getHashedKey(const std::string& key) const =0;
 
 
     protected:
         std::string _binID;
         bool        _hashKeys;
         TimeStamp   _minTime;
+        osg::ref_ptr<osg::Referenced> _metadata;
     };
 }
 

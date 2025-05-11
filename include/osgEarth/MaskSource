@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include <osgEarth/Config>
 #include <osgEarth/Revisioning>
 #include <osgEarth/SpatialReference>
+#include <osgEarth/Status>
 #include <osg/Referenced>
 
 namespace osgEarth
@@ -54,8 +55,12 @@ namespace osgEarth
         void fromConfig( const Config& conf );
     };
 
+
     /**
      * MaskSource is a plugin object that generates a masking goemetry
+     *
+     * TODO: there is only one kind of mask source (FeatureMaskSource) so
+     * consider removing this and just having a single MaskLayer type. -gw
      */
     class OSGEARTH_EXPORT MaskSource : public osg::Object, public Revisioned
     {
@@ -66,16 +71,41 @@ namespace osgEarth
         virtual ~MaskSource();
 
         /**
+         * Attempt to open the mask source, and return an initial status.
+         */
+        const Status& open(const osgDB::Options* readOptions);
+
+        /**
+         * Status of this source. *
+         */
+        const Status& getStatus() const { return _status; }
+
+        /**
          * Subclass implements this method to create the boundary geometry.
          */
         virtual osg::Vec3dArray* createBoundary(
             const SpatialReference* srs, 
-            ProgressCallback*       progress =0L ) =0;
+            ProgressCallback*       progress) =0;
 
-    public:
-        virtual void initialize(const osgDB::Options* dbOptions) { }
-
+        /**
+         * The initialization options 
+         */
         const MaskSourceOptions& getOptions() const { return _options; }
+
+
+    protected:
+
+        /**
+         * One time initialization of the source. Called by open(), and
+         * returns the initial Status.
+         */
+        virtual Status initialize(const osgDB::Options* dbOptions) =0;
+
+        /**
+         * Subclass can call this to set a status in case something fails
+         */
+        void setStatus(const Status& value) { _status = value; }
+
     public: 
 
         // META_Object specialization:
@@ -87,6 +117,7 @@ namespace osgEarth
 
     private:
         const MaskSourceOptions _options;
+        Status _status;
 
         friend class Map;
         friend class MaskSourceFactory;
@@ -97,7 +128,7 @@ namespace osgEarth
     class OSGEARTH_EXPORT MaskSourceDriver : public osgDB::ReaderWriter
     {
     protected:        
-        const MaskSourceOptions& getMaskSourceOptions( const osgDB::ReaderWriter::Options* rwOpt ) const;
+        const MaskSourceOptions& getMaskSourceOptions(const osgDB::Options* readOptions) const;
         virtual ~MaskSourceDriver();
     };
 
@@ -106,7 +137,7 @@ namespace osgEarth
     class OSGEARTH_EXPORT MaskSourceFactory
     {   
 	public:
-        static MaskSource* create( const MaskSourceOptions& options );
+        static MaskSource* create(const MaskSourceOptions& options);
         virtual ~MaskSourceFactory();
     };
 }

@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -87,7 +87,6 @@ namespace osgEarth { namespace Splat
          * if there isn't one.
          */
         bool getPredicatesForClass(const std::string& className, std::vector<const CoverageValuePredicate*>& output) const;
-        //const CoverageValuePredicate* getPredicateForClass(const std::string& className) const;
 
     public: // serialization
 

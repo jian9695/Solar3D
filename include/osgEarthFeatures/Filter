@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -33,10 +33,15 @@ namespace osgEarth { namespace Features
     /**
      * Base class for a filter.
      */
-    class OSGEARTHFEATURES_EXPORT Filter : public osg::Referenced
+    class OSGEARTHFEATURES_EXPORT Filter : public osg::Object
     {
+    public:
+        META_Object(osgEarthFeatures, Filter);
+
     protected:
         virtual ~Filter();
+        Filter() : osg::Object() { }
+        Filter(const Filter& rhs, const osg::CopyOp& copyop) : osg::Object(rhs, copyop) { }
     };
 
     /**
@@ -45,17 +50,32 @@ namespace osgEarth { namespace Features
     class OSGEARTHFEATURES_EXPORT FeatureFilter : public Filter
     {
     public:
+        /**
+         * Push a list of features through the filter.
+         */
         virtual FilterContext push( FeatureList& input, FilterContext& context ) =0;
+
+        /**
+         * Optionally initialize the filter.
+         */
+        virtual Status initialize(const osgDB::Options* readOptions) { return Status::OK(); }
 
         /**
          * Serialize this FeatureFilter
          */
         virtual Config getConfig() const { return Config(); }
 
+    protected:
+        FeatureFilter() { }
+        FeatureFilter(const FeatureFilter& rhs, const osg::CopyOp& c) : Filter(rhs, c) { }
         virtual ~FeatureFilter();
     };
 
-    typedef std::list< osg::ref_ptr<FeatureFilter> > FeatureFilterList;
+    //! Vector of feature filters (ref counted)
+    class FeatureFilterChain : public osg::Referenced,
+                               public osg::MixinVector<osg::ref_ptr<FeatureFilter> >
+    {
+    };
 
     /**
      * A Factory that can create a FeatureFilter from a Config
@@ -87,7 +107,7 @@ namespace osgEarth { namespace Features
         /**
          * Creates a FeatureFilter with the registered plugins from the given Config
          */
-        FeatureFilter* create( const Config& conf );
+        FeatureFilter* create(const Config& conf, const osgDB::Options* dbo);
 
     protected:
         FeatureFilterRegistry();
@@ -116,22 +136,28 @@ namespace osgEarth { namespace Features
     };
 
 #define OSGEARTH_REGISTER_FEATUREFILTER( CLASSNAME )\
+    extern "C" void osgearth_featurefilter_##KEY(void) {} \
     static osgEarth::Features::RegisterFeatureFilterProxy<CLASSNAME> s_osgEarthRegisterFeatureFilterProxy_##CLASSNAME;
+    
+#define USE_OSGEARTH_FEATUREFILTER( KEY ) \
+    extern "C" void osgearth_featurefilter_##KEY(void); \
+    static osgDB::PluginFunctionProxy proxy_osgearth_featurefilter_##KEY(osgearth_featurefilter_##KEY);
 
 #define OSGEARTH_REGISTER_SIMPLE_FEATUREFILTER( KEY, CLASSNAME)\
+    extern "C" void osgearth_simple_featurefilter_##KEY(void) {} \
     static osgEarth::Features::RegisterFeatureFilterProxy< osgEarth::Features::SimpleFeatureFilterFactory<CLASSNAME> > s_osgEarthRegisterFeatureFilterProxy_##CLASSNAME##KEY(new osgEarth::Features::SimpleFeatureFilterFactory<CLASSNAME>(#KEY));
+    
+#define USE_OSGEARTH_SIMPLE_FEATUREFILTER( KEY ) \
+    extern "C" void osgearth_simple_featurefilter_##KEY(void); \
+    static osgDB::PluginFunctionProxy proxy_osgearth_simple_featurefilter_##KEY(osgearth_simple_featurefilter_##KEY);
+    
 
+    //--------------------------------------------------------------------
 
-    template<typename T>
-    class TemplateFeatureFilter : public Filter, public T
+    class OSGEARTHFEATURES_EXPORT FeatureFilterDriver : public osgDB::ReaderWriter
     {
-    public:
-        FilterContext push( FeatureList& input, FilterContext& context ) {
-            for( FeatureList::iterator i = input.begin(); i != input.end(); ++i ) {
-                T::operator()( i->get(), context );
-            }
-            return context;
-        }
+    protected:
+        const ConfigOptions& getConfigOptions(const osgDB::Options* options) const;
     };
 
     /**
@@ -187,7 +213,6 @@ namespace osgEarth { namespace Features
             const osg::Matrixd&            world2local,
             bool                           toECEF );
 
-        void applyLineSymbology(osg::StateSet*, const class LineSymbol*);
         void applyPointSymbology(osg::StateSet*, const class PointSymbol*);
 
         osg::Matrixd _world2local, _local2world;   // for coordinate localization

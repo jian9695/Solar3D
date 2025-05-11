@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@
 #ifndef OSGEARTH_ANNOTATION_CIRCLE_NODE_H
 #define OSGEARTH_ANNOTATION_CIRCLE_NODE_H 1
 
-#include <osgEarthAnnotation/LocalizedNode>
+#include <osgEarthAnnotation/LocalGeometryNode>
 #include <osgEarthSymbology/Style>
 #include <osgEarth/MapNode>
 #include <osgEarth/Units>
@@ -36,10 +36,12 @@ namespace osgEarth { namespace Annotation
     /**
      * Circle annotation.
      */
-    class OSGEARTHANNO_EXPORT CircleNode : public LocalizedNode
+    class OSGEARTHANNO_EXPORT CircleNode : public LocalGeometryNode
     {
     public:
         META_AnnotationNode( osgEarthAnnotation, CircleNode );
+
+        CircleNode();
 
         /**
          * Constructs a new circle annotation.
@@ -52,8 +54,7 @@ namespace osgEarth { namespace Annotation
          * @param arcStop     Optional end of arc (default to 360.0 degrees)
          * @param pie         Optionally make pie shape instead of arc
          */
-        CircleNode(
-            MapNode*          mapNode,
+        void set(
             const GeoPoint&   position,
             const Distance&   radius,
             const Style&      style,
@@ -65,7 +66,6 @@ namespace osgEarth { namespace Annotation
          * Constructs a circle node from its serialized form
          */
         CircleNode(
-            MapNode*              mapNode,
             const Config&         conf,
             const osgDB::Options* dbOptions);
 
@@ -92,16 +92,6 @@ namespace osgEarth { namespace Annotation
          * Sets the number of segments of this circle
          */
         void setNumSegments(unsigned int numSegments );
-
-        /**
-         * Gets the style of this circle
-         */
-        const Style& getStyle() const;
-
-        /**
-         * Sets the style of this circle
-         */
-        void setStyle( const Style& style );
 
         /**
          * Gets the start degrees of this (arc) circle
@@ -133,31 +123,23 @@ namespace osgEarth { namespace Annotation
          */
         void setPie(const bool& pie);
 
-    public: // LocalizedNode
-
-        osg::MatrixTransform* getTransform() { return _xform.get(); }
-
 
     public: // AnnotationNode overrides
 
         virtual Config getConfig() const;
 
-
     private:
-        CircleNode() { }
         CircleNode(const CircleNode& rhs, const osg::CopyOp& op) { }
 
-        void rebuild();
+        void construct();
 
-        Style           _style;
-        bool            _draped;
-        unsigned        _numSegments;
-        Distance        _radius;
+        void buildGeometry();
+
+        unsigned       _numSegments;
+        Distance       _radius;
         Angle          _arcStart;
         Angle          _arcEnd;
         bool           _pie;
-
-        osg::ref_ptr<osg::MatrixTransform> _xform;
     };
 
 } } // namespace osgEarth::Annotation

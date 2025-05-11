@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -61,6 +61,11 @@ namespace osgEarth
 
         /** dtor */
         virtual ~Random() { }
+
+        /**
+         * Seeds the PRNG with a new seed.
+         */
+        void seed(unsigned s);
 
         /**
          * Resets the PRNG to its initial state (initial seed).

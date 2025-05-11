@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -22,10 +22,13 @@
 #include <osgEarthFeatures/Common>
 #include <osgEarthFeatures/Feature>
 #include <osgEarthFeatures/Session>
+
 #include <osgEarthSymbology/Geometry>
 #include <osgEarthSymbology/ResourceCache>
+
 #include <osgEarth/GeoData>
 #include <osgEarth/ShaderUtils>
+
 #include <osg/Matrix>
 #include <list>
 #include <vector>
@@ -34,7 +37,8 @@ namespace osgEarth { namespace Features
 {
     using namespace osgEarth;
     using namespace osgEarth::Symbology;
-    class Session;
+
+    //class Session;
     class FeatureProfile;
     class FeatureIndexBuilder;
 
@@ -44,16 +48,18 @@ namespace osgEarth { namespace Features
     class OSGEARTHFEATURES_EXPORT FilterContext
     {
     public:
+        FilterContext();
+
         FilterContext(
-            Session*              session       =0L,
+            Session*              session,
             const FeatureProfile* profile       =0L,
             const GeoExtent&      workingExtent =GeoExtent::INVALID,
             FeatureIndexBuilder*  index         =0L);
 
         FilterContext( const FilterContext& rhs );
-        
-        virtual ~FilterContext() { }
 
+        ~FilterContext();
+        
         /**
          * Assigns a resource cache to use. One is created automatically if you
          * don't assign one.
@@ -65,19 +71,27 @@ namespace osgEarth { namespace Features
          */
         void setProfile( const FeatureProfile* profile );
 
+        /**
+         * Sets the output SRS for feature processing. This is optional.
+         * If you do not set this, the output SRS will be that of the
+         * session's Map.
+         */
+        void setOutputSRS(const SpatialReference* srs) { _outputSRS = srs; }
+        const SpatialReference* getOutputSRS() const;
+
 
     public: // properties
 
         /**
          * Whether this context contains complete georeferencing information.
          */
-        bool isGeoreferenced() const { return _session.valid() && _profile.valid(); }
+        bool isGeoreferenced() const;
 
         /**
          * Access to the Session under which this filter context operates
          */
-        Session* getSession() { return _session.get(); }
-        const Session* getSession() const { return _session.get(); }
+        Session* getSession();
+        const Session* getSession() const;
 
         /**
          * The spatial profile of the feature data in this context.
@@ -181,6 +195,7 @@ namespace osgEarth { namespace Features
         void pushHistory(const std::string& value) { _history.push_back(value); }
 
     protected:
+
         osg::ref_ptr<Session>              _session;
         osg::ref_ptr<const FeatureProfile> _profile;
         bool                               _isGeocentric;
@@ -191,6 +206,7 @@ namespace osgEarth { namespace Features
         FeatureIndexBuilder*               _index;
         optional<ShaderPolicy>             _shaderPolicy;
         std::vector<std::string>           _history;
+        osg::ref_ptr<const SpatialReference> _outputSRS;
     };
 
 } } // namespace osgEarth::Features

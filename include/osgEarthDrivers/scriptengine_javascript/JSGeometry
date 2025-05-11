@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -136,6 +136,8 @@ namespace osgEarth { namespace Drivers { namespace Duktape
             duk_put_prop_string(ctx, -2, "xmax");
             duk_push_number(ctx, b.yMax());
             duk_put_prop_string(ctx, -2, "ymax");
+            duk_push_number(ctx, b.area2d());
+            duk_put_prop_string(ctx, -2, "area");
 
             return 1;
         }

@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -52,9 +52,9 @@ namespace osgEarth { namespace Drivers
     protected:
         Config getConfig() const {
             Config conf = TileSourceOptions::getConfig();
-            conf.updateIfSet("url", _url );
-            conf.updateIfSet("layer", _layer);
-            conf.updateIfSet("format", _format);
+            conf.set("url", _url );
+            conf.set("layer", _layer);
+            conf.set("format", _format);
             return conf;
         }
         void mergeConfig( const Config& conf ) {
@@ -63,9 +63,9 @@ namespace osgEarth { namespace Drivers
         }
     private:
         void fromConfig( const Config& conf ) {
-            conf.getIfSet( "url", _url );
-            conf.getIfSet( "layer", _layer );
-            conf.getIfSet( "format", _format );
+            conf.get( "url", _url );
+            conf.get( "layer", _layer );
+            conf.get( "format", _format );
         }
 
         optional<URI>         _url;

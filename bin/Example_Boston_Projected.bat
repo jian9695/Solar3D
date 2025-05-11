@@ -1,0 +1,1 @@
+Solar3D ./tests/boston_projected.earth

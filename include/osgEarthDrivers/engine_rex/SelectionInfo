@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+/* osgEarth - Geospatial SDK for OpenSceneGraph
 * Copyright 2008-2014 Pelican Mapping
 * http://osgearth.org
 *
@@ -20,55 +20,53 @@
 #define OSGEARTH_DRIVERS_REX_TERRAIN_ENGINE_SELECTION_INFO 1
 
 #include "Common"
+#include <osg/NodeVisitor>
+#include <osgEarth/Profile>
 #include <vector>
 
 
 namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
 {
-    struct VisParameters
-    {
-        double _fVisibility;
-        double _fMorphStart;
-        double _fMorphEnd;
-    };
+    /**
+     * SelectionInfo is a data structure that holds the LOD distance switching 
+     * information for the terrain, to support paging and LOD morphing. 
+     * This is calculated once when the terrain is first created.
+     */
     class SelectionInfo
     {
     public:
-        bool initialized(void) const;
-        void initialize(unsigned uiFirstLOD, unsigned uiMaxLod, unsigned uiTileSize, double fLodFar);
+        struct LOD
+        {
+            double _visibilityRange;
+            double _morphStart;
+            double _morphEnd;
+            unsigned _minValidTY, _maxValidTY;
+        };
 
-        unsigned numLods(void) const;
+    public:
+        SelectionInfo() : _firstLOD(0) { }
 
-        // Dimensions of the skeleton grid in X
-        unsigned gridDimX(void) const;
+        //! Initialize the selection into LODs
+        void initialize(unsigned firstLod, unsigned maxLod, const Profile* profile, double mtrf, bool restrictPolarSubdivision);
 
-        // Dimensions of the skeleton grid in Y
-        unsigned gridDimY(void) const;
+        //! Number of LODs
+        unsigned getNumLODs(void) const { return _lods.size(); }
 
-        // Morph start ratio
-        static double   morphStartRatio(void);
+        //! Visibility and morphing information for a specific LOD
+        const LOD& getLOD(unsigned lod) const;
 
-        // LOD at which morphing should start
-        static unsigned lodForMorphing(bool isProjected);
+        //! Fetch the effective visibility range and morphing range for a key
+        void get(const TileKey& key, float& out_range, float& out_startMorphRange, float& out_endMorphRange) const;
 
-        VisParameters visParameters(unsigned lod) const;
+        //! Get just the visibility range for a TileKey.
+        float getRange(const TileKey& key) const;
+
     private:
-        unsigned                        _numLods;
-        std::pair<unsigned, unsigned>   _uiGridDimensions; 
-        std::vector<VisParameters>      _vecVisParams;
-        unsigned                        _uiFirstLOD;
-
-        static const double             _fMorphStartRatio; 
-
-        // This is the lod at which morphing should start (used by shader)
-        static const unsigned           _uiLODForMorphingRoundEarth;
-        
-        // This is used to determine _numLods given a fLodFar during initialize
-        // initialize. This is the distance beyond which further lods (and 
-        // hence VisParameters) are not generated
-        static const double             _fLodLowerBound;
+        std::vector<LOD>    _lods;
+        unsigned            _firstLOD;
+        static const double _morphStartRatio;
     };
-}
-}
-}
+
+} } } // namespace
+
 #endif

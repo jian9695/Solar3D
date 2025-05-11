@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -25,20 +25,90 @@
 
 #include <osgEarth/Common>
 #include <osgEarth/CacheBin>
+#include <osgEarth/CachePolicy>
 #include <osgEarth/Config>
 #include <osgEarth/TileKey>
 #include <osgEarth/Containers>
 #include <sys/types.h>
+#include <map>
 
 // environment variables
 #define OSGEARTH_ENV_CACHE_DRIVER  "OSGEARTH_CACHE_DRIVER"
 #define OSGEARTH_ENV_CACHE_PATH    "OSGEARTH_CACHE_PATH"
 #define OSGEARTH_ENV_CACHE_ONLY    "OSGEARTH_CACHE_ONLY"
+#define OSGEARTH_ENV_DEFAULT_COMPRESSOR "OSGEARTH_DEFAULT_COMPRESSOR"
+
 #define OSGEARTH_ENV_NO_CACHE      "OSGEARTH_NO_CACHE"
 #define OSGEARTH_ENV_CACHE_MAX_AGE "OSGEARTH_CACHE_MAX_AGE"
 
 namespace osgEarth
 {
+#define DEFAULT_BIN_ID ""
+
+    class Cache;
+    class CachePolicy;
+
+    /**
+     * CacheSettings is an object stored in the osgDB::Options structure that
+     * propagates throughout the osgEarth data model. It represents a Cache state
+     * that includes the actual Cache, the active CacheBin, and a policy.
+     */
+    class OSGEARTH_EXPORT CacheSettings : public osg::Object
+    {
+    public:
+        META_Object(osgEarth,CacheSettings);
+
+        typedef UID ID;
+
+        typedef std::string BinID;
+
+        /** default constructor */
+        CacheSettings();
+
+        /** copier */
+        CacheSettings(const CacheSettings& rhs, const osg::CopyOp& copy =osg::CopyOp::SHALLOW_COPY);
+
+        /** Whether this object support an active cache. */
+        bool isCacheEnabled() const;
+        bool isCacheDisabled() const { return !isCacheEnabled(); }
+
+        /** Cache used by these settings */
+        Cache* getCache() const { return _cache.get(); }
+        void setCache(Cache* cache) { _cache = cache; }
+
+        /** Sets the active cache bin to use under these settings. */
+        void setCacheBin(CacheBin* bin) { _activeBin = bin; }
+        CacheBin* getCacheBin() { return _activeBin.get(); }
+
+        /** The caching policy in effect for all bins; this starts out the same as
+          * defaultCachePolicy() but you can change it. */
+        optional<CachePolicy>& cachePolicy() { return _policy; }
+        const optional<CachePolicy>& cachePolicy() const { return _policy; }
+
+        /** Integrates an outside cache policy with the one in these settings. This method
+          * also takes care of global (registry) override policy. */
+        void integrateCachePolicy(const optional<CachePolicy>& policy);
+
+        /** Extracts the settings from a read-options structure. */
+        static CacheSettings* get(const osgDB::Options* readOptions);
+
+        /** Stores this instance in an Options data container. Extract using get(). */
+        void store(osgDB::Options* readOptions);
+
+        /** for debugging */
+        std::string toString() const;
+
+    protected:
+        virtual ~CacheSettings() { }
+
+        osg::ref_ptr<Cache>      _cache;
+        osg::ref_ptr<CacheBin>   _activeBin;
+        optional<CachePolicy>    _policy;
+        mutable Threading::Mutex _mutex;
+    };
+
+//--------------------------------------------------------------------
+
     /**
      * Base class for Cache options.
      */
@@ -47,8 +117,8 @@ namespace osgEarth
     public:
         CacheOptions( const ConfigOptions& options =ConfigOptions() )
             : DriverConfigOptions( options )
-        { 
-            fromConfig( _conf ); 
+        {
+            fromConfig( _conf );
         }
 
         /** dtor */
@@ -61,7 +131,7 @@ namespace osgEarth
         }
 
         virtual void mergeConfig( const Config& conf ) {
-            ConfigOptions::mergeConfig( conf );            
+            ConfigOptions::mergeConfig( conf );
             fromConfig( conf );
         }
 
@@ -70,9 +140,14 @@ namespace osgEarth
             //future
         }
     };
+}
+
+OSGEARTH_SPECIALIZE_CONFIG(osgEarth::CacheOptions);
 
 //--------------------------------------------------------------------
 
+namespace osgEarth
+{
     typedef PerObjectRefMap<std::string, CacheBin> ThreadSafeCacheBinMap;
 
 
@@ -84,7 +159,6 @@ namespace osgEarth
     protected:
         Cache( const CacheOptions& options =CacheOptions() );
         Cache( const Cache& rhs, const osg::CopyOp& op =osg::CopyOp::DEEP_COPY_ALL );
-        META_Object( osgEarth, Cache );
 
         /** dtor */
         virtual ~Cache();
@@ -102,7 +176,7 @@ namespace osgEarth
          */
         CacheBin* getBin( const std::string& name );
 
-        /** 
+        /**
          * Gets the default caching bin within this cache. This may or may not
          * be supported by the implementation, so be sure to check the result
          * before using it.
@@ -110,11 +184,11 @@ namespace osgEarth
         virtual CacheBin* getOrCreateDefaultBin() { return _defaultBin.get(); }
 
         /**
-         * Creates (and returns a pointer to) a new Cache Bin.
+         * Creates (and returns a pointer to) a new Cache Bin, or returns an
+         * already-existing one with that ID.
          * @param binID Name of the new bin
-         * @param rw    Read/write driver that will handle serialization for the bin
          */
-        virtual CacheBin* addBin( const std::string& binID ) { return 0L; }
+        virtual CacheBin* addBin(const std::string& binID) =0;
 
         /**
          * Removes a cache bin from the cache.
@@ -122,7 +196,7 @@ namespace osgEarth
          */
         virtual void removeBin( CacheBin* bin );
 
-        /** 
+        /**
          * Gets an Options structure representing this cache's configuration.
          */
         const CacheOptions& getCacheOptions() const { return _options; }
@@ -144,19 +218,8 @@ namespace osgEarth
          */
         virtual bool clear() { return false; }
 
-        /**
-         * Store this to an osgDB::Options
-         */
-        void apply( osgDB::Options* options ) {
-            if ( options ) options->setPluginData( "osgEarth::Cache", this );
-        }
-
-        /**
-         * Fetch pointer from a osgDB::Options
-         */
-        static Cache* get( const osgDB::Options* options ) {
-            return options ? const_cast<Cache*>( static_cast<const Cache*>( options->getPluginData("osgEarth::Cache") ) ) : 0L;
-        }
+        //! Make a legal cache key with an optional prefix
+        static std::string makeCacheKey(const std::string& input, const std::string& prefix="");
 
     protected:
         bool                   _ok;
@@ -181,7 +244,7 @@ namespace osgEarth
 
 //----------------------------------------------------------------------
 
-    /** 
+    /**
      * Factory class that can load and instantiate a Cache implementation based on the
      * information in the CacheOptions settings.
      */

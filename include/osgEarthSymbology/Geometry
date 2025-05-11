@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -120,13 +120,13 @@ namespace osgEarth { namespace Symbology
          * Creates a new Vec3Array (single-precision), copies the part into it, and
          * returns the new object. 
          */
-        osg::Vec3Array* toVec3Array() const;
+        osg::Vec3Array* createVec3Array() const;
 
         /**
          * Creates a new Vec3dArray (double-precision), copies the part into it, and
          * returns the new object.
          */
-        osg::Vec3dArray* toVec3dArray() const;
+        osg::Vec3dArray* createVec3dArray() const;
 
         /**
          * Gets the bounds of this geometry
@@ -161,6 +161,14 @@ namespace osgEarth { namespace Symbology
             osg::ref_ptr<Geometry>& output ) const;
 
         /**
+         * Crops this geometry to the bounds, returning the result in the output parameter.
+         * Returns true if the op succeeded.
+         */
+        bool crop(
+            const Bounds& bounds,
+            osg::ref_ptr<Geometry>& output) const;
+
+        /**
          * Creates the union of this geometry with the other geometry, returning
          * the result in the output parameter. Returns true if the op succeeded.
          */
@@ -175,6 +183,13 @@ namespace osgEarth { namespace Symbology
         bool difference(
             const class Polygon* diffPolygon,
             osg::ref_ptr<Geometry>& output ) const;
+
+        /**
+         * Whether this geometry intersects with another geometry
+         */
+        bool intersects(
+            const class Geometry* other
+            ) const;
 
         /**
          * Localizes this geometry relative to its centroid, and returns the localization
@@ -194,9 +209,20 @@ namespace osgEarth { namespace Symbology
         virtual void rewind( Orientation ori );
 
         /**
-         * Removes consecutive duplicates in the geometry to prepare for tesselation.
+         * Makes the last point the same as the first point. Suitable for rings and polygons.
+         */
+        virtual void close();
+
+        /**
+         * Removes consecutive duplicates in the geometry to prepare for tessellation.
          */
         virtual void removeDuplicates();
+
+        /**
+         * Removes any colinear points, i.e. points that can be safely removed without
+         * affecting the shape/area of the geometry.
+         */
+        virtual void removeColinearPoints();
 
         /**
          * Get the winding orientation of the geometry (if you consider the last point
@@ -236,6 +262,8 @@ namespace osgEarth { namespace Symbology
         /** dtor */
         virtual ~PointSet();
 
+        virtual void close();
+
     public:
         virtual Type getType() const { return Geometry::TYPE_POINTSET; }
     };
@@ -254,6 +282,8 @@ namespace osgEarth { namespace Symbology
         virtual ~LineString();
 
         bool getSegment(double length, osg::Vec3d& start, osg::Vec3d& end);
+
+        virtual void close();
 
     public:
         virtual Type getType() const { return Geometry::TYPE_LINESTRING; }
@@ -278,7 +308,7 @@ namespace osgEarth { namespace Symbology
         // override
         virtual Geometry* cloneAs( const Geometry::Type& newType ) const;
 
-        // tests whether the point falls withing the ring
+        // tests whether the point falls within the ring
         virtual bool contains2D( double x, double y ) const;
 
         // gets the signed area of a part that is known to be open.
@@ -327,7 +357,7 @@ namespace osgEarth { namespace Symbology
         
         virtual unsigned getNumGeometries() const { return 1 + _holes.size(); }
 
-        // tests whether the point falls withing the polygon (but not its holes)
+        // tests whether the point falls within the polygon (but not its holes)
         virtual bool contains2D( double x, double y ) const;
 
         virtual void open();
@@ -335,6 +365,8 @@ namespace osgEarth { namespace Symbology
         virtual void close();
 
         virtual void removeDuplicates();
+
+        virtual void removeColinearPoints();
 
     public:
         RingCollection& getHoles() { return _holes; }
@@ -373,6 +405,8 @@ namespace osgEarth { namespace Symbology
         virtual bool isValid() const;
         virtual Bounds getBounds() const;
         virtual void rewind( Orientation ori );
+        virtual void removeColinearPoints();
+        virtual void close();
 
     public:
         GeometryCollection& getComponents() { return _parts; }
@@ -387,7 +421,7 @@ namespace osgEarth { namespace Symbology
     /**
      * Iterates over a Geometry object, returning each component Geometry
      * in turn. The iterator automatically traverses MultiGeometry objects,
-     * returning their components. The interator NEVER returns an actual
+     * returning their components. The iterator NEVER returns an actual
      * MultiGeometry object.
      */
     class OSGEARTHSYMBOLOGY_EXPORT GeometryIterator

@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
+/* osgEarth - Geospatial SDK for OpenSceneGraph
 * Copyright 2008-2014 Pelican Mapping
 * http://osgearth.org
 *
@@ -23,6 +23,7 @@
 #include "GeometryPool"
 #include "RenderBindings"
 #include "TileDrawable"
+#include "TileRenderModel"
 
 #include <osgEarth/MapInfo>
 #include <osgEarth/Horizon>
@@ -31,29 +32,31 @@
 #include <osg/Drawable>
 #include <osg/Geode>
 #include <osgText/Text>
+#include <osgUtil/CullVisitor>
+#include <OpenThreads/Atomic>
 #include <vector>
 
 namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
 {
     using namespace osgEarth;
 
-    struct HorizonTileCuller : public osg::NodeCallback
+    /**
+     * Like cluster culling
+     */
+    struct HorizonTileCuller
     {
-        double      _radiusPolar, _radiusEquator;
-        Horizon     _horizonProto;
         osg::Vec3d  _points[4];
-        osg::Matrix _local2world;
+        osg::ref_ptr<Horizon> _horizon;
 
-        HorizonTileCuller(const SpatialReference* srs, const osg::Matrix& local2world);
+        void set(const SpatialReference* srs, const osg::Matrix& local2world, const osg::BoundingBox& bbox);
 
-        void set(const osg::BoundingBox& bbox);
-
-        void operator()(osg::Node* node, osg::NodeVisitor* nv);
+        bool isVisible(const osg::Vec3d& from) const;
     };
 
 
     /**
-     * SurfaceNode holds the geometry of the terrain surface.
+     * SurfaceNode holds the geometry and transform information
+     * for one terrain tile surface.
      */
     class SurfaceNode : public osg::MatrixTransform
     {
@@ -72,30 +75,56 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
         
         TileDrawable* getDrawable() const { return _drawable.get(); }
 
+        inline bool isVisibleFrom(const osg::Vec3& viewpoint) const {
+            return _horizonCuller.isVisible(viewpoint);
+        }
         
         // A box can have 4 children. 
         // Returns true if any child box intersects the sphere of radius centered around point
-        bool anyChildBoxIntersectsSphere(const osg::Vec3& point, float radiusSquared, float fZoomFactor);
+        inline bool anyChildBoxIntersectsSphere(const osg::Vec3& point, float radiusSquared) {
+            for(int c=0; c<4; ++c) {
+                for(int j=0; j<8; ++j) {
+                    if ( (_childrenCorners[c][j]-point).length2() < radiusSquared )
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        bool anyChildBoxWithinRange(float range, osg::NodeVisitor& nv) const {
+            for(int c=0; c<4; ++c) {
+                for(int j=0; j<8; ++j) {
+                    if (nv.getDistanceToViewPoint(_childrenCorners[c][j], true) < range)
+                        return true;
+                }
+            }
+            return false;
+        }
 
         void setDebugText(const std::string& strText);
+
+        osg::BoundingSphere computeBound() const;
+
+        osg::Node* getDebugNode() const { return _debugNode.get(); }
+
+        void setLastFramePassedCull(unsigned fn);
+
+        unsigned getLastFramePassedCull() const { return _lastFramePassedCull; }
+
+        float getPixelSizeOnScreen(osg::CullStack* cull) const;
 
     protected:
         virtual ~SurfaceNode() { }
 
-        TileKey                    _tileKey;
-        osg::BoundingBox           _bbox;
-        osg::ref_ptr<TileDrawable> _drawable;
-        osg::ref_ptr<osg::Geode>   _surfaceGeode;
-
-        osg::ref_ptr<osg::Geode>    _debugGeode;
+        TileKey                     _tileKey;
+        osg::ref_ptr<TileDrawable>  _drawable;
+        osg::ref_ptr<osg::Node>     _debugNode;
         osg::ref_ptr<osgText::Text> _debugText;
         static const bool           _enableDebugNodes;
-        
-        osg::ref_ptr<HorizonTileCuller> _horizonCuller;        
+        OpenThreads::Atomic         _lastFramePassedCull;
+        HorizonTileCuller           _horizonCuller;        
 
         typedef osg::Vec3 VectorPoints[8];
-        
-        float minSquaredDistanceFromPoint(const VectorPoints& points, const osg::Vec3& center, float fZoomFactor);
 
 
         void addDebugNode(const osg::BoundingBox& box);
@@ -104,7 +133,6 @@ namespace osgEarth { namespace Drivers { namespace RexTerrainEngine
         VectorPoints _worldCorners;
 
         typedef VectorPoints (ChildrenCorners) [4];
-        //typedef std::vector< VectorPoints > ChildrenCorners;
         ChildrenCorners _childrenCorners;
     };
 

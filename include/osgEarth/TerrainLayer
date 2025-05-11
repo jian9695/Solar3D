@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -23,11 +23,12 @@
 #include <osgEarth/Common>
 #include <osgEarth/CachePolicy>
 #include <osgEarth/Config>
-#include <osgEarth/Layer>
+#include <osgEarth/VisibleLayer>
 #include <osgEarth/TileSource>
 #include <osgEarth/Profile>
 #include <osgEarth/ThreadingUtils>
 #include <osgEarth/HTTPClient>
+#include <osgEarth/Status>
 
 namespace osgEarth
 {
@@ -38,20 +39,20 @@ namespace osgEarth
     /**
      * Initialization (and serializable) options for a terrain layer.
      */
-    class OSGEARTH_EXPORT TerrainLayerOptions : public ConfigOptions
+    class OSGEARTH_EXPORT TerrainLayerOptions : public VisibleLayerOptions
     {
     public:
-        TerrainLayerOptions( const ConfigOptions& options =ConfigOptions() );
-        TerrainLayerOptions( const std::string& name, const TileSourceOptions& driverOptions );
+        //! Construct empty (default) options.
+        TerrainLayerOptions();
 
-        /** dtor */
-        virtual ~TerrainLayerOptions() { }
+        //! Deserialize options from a Config structure
+        TerrainLayerOptions(const ConfigOptions& options);
 
-        /**
-         * The readable name of the layer.
-         */
-        std::string& name() { return _name; }
-        const std::string& name() const { return _name; }
+        //! Construct empty named options.
+        TerrainLayerOptions(const std::string& name);
+
+        //! Construct empty options with TileSource configuration.
+        TerrainLayerOptions(const std::string& name, const TileSourceOptions& driverOptions);
 
         /**
          * Gets the explicity vertical datum identifier that will override a vertical
@@ -92,20 +93,13 @@ namespace osgEarth
          */
         optional<double>& maxResolution() { return _maxResolution; }
         const optional<double>& maxResolution() const { return _maxResolution; }
-        
-        /**
-         * Whether to use this layer with the map. Setting this to false means that 
-         * the layer will remain in its map model but will not be used by the 
-         * terrain engine. You cannot change the "enabled" state at runtime.
-         */        
-        optional<bool>& enabled() { return _enabled; }
-        const optional<bool>& enabled() const { return _enabled; }
 
         /**
-         * Whether to render (or otherwise use) the layer.
+         * The maximum level of detail for which this layer should generate new data.
+         * Data from this layer will be upsampled in map tiles above the maxDataLevel.
          */
-        optional<bool>& visible() { return _visible; }
-        const optional<bool>& visible() const { return _visible; }
+        optional<unsigned>& maxDataLevel() { return _maxDataLevel; }
+        const optional<unsigned>& maxDataLevel() const { return _maxDataLevel; }
 
         /**
          * Whether to use exact cropping if image cropping is necessary
@@ -115,36 +109,10 @@ namespace osgEarth
 
         /**
          * The desired tile size to reproject imagery to if necessary.
+         * TODO: evaluate for possible deprecation
          */
         optional<unsigned int>& reprojectedTileSize() { return _reprojectedTileSize; }
         const optional<unsigned int>& reprojectedTileSize() const { return _reprojectedTileSize; }
-
-        /**
-         * Explicit cache ID to uniquely identify the cache that matched this
-         * layer's tile source properties. This is usually automatically
-         * generated but you can override it here.
-         */
-        optional<std::string>& cacheId() { return _cacheId; }
-        const optional<std::string>& cacheId() const { return _cacheId; }
-
-        /**
-         * The format that this MapLayer should use when caching. This can be a mime type
-         * or a file extension.
-         */
-        optional<std::string>& cacheFormat() { return _cacheFormat; }
-        const optional<std::string>& cacheFormat() const { return _cacheFormat; }
-
-        /**
-         * Caching policy to use for this layer.
-         */
-        optional<CachePolicy>& cachePolicy() { return _cachePolicy; }
-        const optional<CachePolicy>& cachePolicy() const { return _cachePolicy; }
-        
-        /**
-         * The loading weight of this MapLayer (for threaded loading policies).
-         */
-        optional<float>& loadingWeight() { return _loadingWeight; }
-        const optional<float>& loadingWeight() const { return _loadingWeight; }
 
         /**
          * The ratio used to expand the extent of a tile when the layer
@@ -155,105 +123,90 @@ namespace osgEarth
         optional<double>& edgeBufferRatio() { return _edgeBufferRatio;}
         const optional<double>& edgeBufferRatio() const { return _edgeBufferRatio; }
 
-        /** 
-         * The hostname/port of a proxy server to use for HTTP communications on this layer
-         * Default = no proxy.
-         */
+        //! The hostname/port of a proxy server to use for HTTP communications on this layer
+        //! Default = no proxy.
         optional<ProxySettings>& proxySettings() { return _proxySettings; }
         const optional<ProxySettings>& proxySettings() const { return _proxySettings; }
 
+        //! Number of samples in each dimension.
+        optional<unsigned>& tileSize() { return _tileSize; }
+        const optional<unsigned>& tileSize() const { return _tileSize; }
+
+        //! Value to treat as a "no data" marker.
+        optional<float>& noDataValue() { return _noDataValue; }
+        const optional<float>& noDataValue() const { return _noDataValue; }
+
+        //! Treat any value less than this as a "no data" marker.
+        optional<float>& minValidValue() { return _minValidValue; }
+        const optional<float>& minValidValue() const { return _minValidValue; }
+
+        //! Treat any value greater than this as a "no data" marker.
+        optional<float>& maxValidValue() { return _maxValidValue; }
+        const optional<float>& maxValidValue() const { return _maxValidValue; }
+
     public:
-        virtual Config getConfig() const { return getConfig(false); }
-        virtual Config getConfig( bool isolate ) const;
+        virtual Config getConfig() const;
+
         virtual void mergeConfig( const Config& conf );
 
     private:
-        void fromConfig( const Config& conf );
         void setDefaults();
-       
-        std::string                 _name;
+        void fromConfig( const Config& conf );
+
         optional<std::string>       _vertDatum;
         optional<TileSourceOptions> _driver;
         optional<unsigned>          _minLevel;
         optional<unsigned>          _maxLevel;
         optional<double>            _minResolution;
         optional<double>            _maxResolution;
-        optional<float>             _loadingWeight;
+        optional<unsigned>          _maxDataLevel;
         optional<bool>              _exactCropping;
-        optional<bool>              _enabled;
-        optional<bool>              _visible;
         optional<unsigned>          _reprojectedTileSize;
         optional<double>            _edgeBufferRatio;
-        optional<unsigned>          _maxDataLevel;
-
-        optional<std::string>       _cacheId;
-        optional<std::string>       _cacheFormat;
-        optional<CachePolicy>       _cachePolicy;
+        optional<unsigned>          _tileSize;
         optional<ProxySettings>     _proxySettings;
+        optional<float>             _noDataValue;
+        optional<float>             _minValidValue;
+        optional<float>             _maxValidValue;
     };
 
-    /**
-     * Runtime property notification callback for TerrainLayers.
-     */
-    struct TerrainLayerCallback : public osg::Referenced
+
+    struct TerrainLayerCallback : public VisibleLayerCallback
     {
-        virtual void onVisibleChanged( class TerrainLayer* layer ) { }
-        virtual ~TerrainLayerCallback() { }
+        typedef void(TerrainLayerCallback::*MethodPtr)(class TerrainLayer*);
     };
-
-    typedef void (TerrainLayerCallback::*TerrainLayerCallbackMethodPtr)(class TerrainLayer* layer);
-
 
     /**
      * A layer that comprises the terrain skin (image or elevation layer)
      */
-    class OSGEARTH_EXPORT TerrainLayer : public Layer
+    class OSGEARTH_EXPORT TerrainLayer : public VisibleLayer
     {
-    protected:
-        TerrainLayer( 
-            const TerrainLayerOptions& initOptions, 
-            TerrainLayerOptions*       runtimeOptions );
-        
-        TerrainLayer( 
-            const TerrainLayerOptions& initOptions, 
-            TerrainLayerOptions*       runtimeOptions,
-            TileSource*                tileSource );
+    public:
+        META_Layer(osgEarth, TerrainLayer, TerrainLayerOptions, terrain);
 
+    protected:
+        //! Construct from subclass with a pointer to the concerete options structure.
+        TerrainLayer(TerrainLayerOptions* =0L);
+
+        //! Construct from subclass with pointer to concrete options and premade tile source
+        TerrainLayer(TerrainLayerOptions*, TileSource*);
+
+        //! DTOR
         virtual ~TerrainLayer();
+
+    public: // Layer
+
+        /** Opens the layer and initializes the data source. */
+        virtual const Status& open();
+
+        //! Cache ID for this layer
+        virtual std::string getCacheID() const;
+
 
     public:
 
         /**
-         * The options data connected to this layer.
-         */
-        const TerrainLayerOptions& getInitialOptions() const { return _initOptions; }
-
-        const TerrainLayerOptions& getTerrainLayerRuntimeOptions() const { return *_runtimeOptions; }
-
-        /**
-         * Whether to use this layer. Note, a layer is enabled/disabled once and its
-         * status cannot be changed.
-         */
-        bool getEnabled() const { return *_runtimeOptions->enabled(); }
-
-        /**
-         * Whether to draw (or otherwise use) this layer.
-         */
-        void setVisible( bool value );
-        bool getVisible() const { return getEnabled() && *_runtimeOptions->visible(); }
-
-        /**
-         * Gets the readable name of the map layer.
-         */
-        const std::string& getName() const { return getTerrainLayerRuntimeOptions().name(); }
-
-		/**
-		 * Sets the readable name of the map layer
-		 */
-		void setName( const std::string& name ) { _runtimeOptions->name() = name; }
-
-        /**
-         * Gets the profile of this MapLayer
+         * Gets the profile of this layer
          */
         const Profile* getProfile() const;
 
@@ -266,151 +219,171 @@ namespace osgEarth
          * Gets the size (i.e. number of samples in each dimension) or the source
          * data for this layer.
          */
-        unsigned getTileSize() const;
-        
-        /**
-         * Whether the layer represents dynamic data, i.e. tile data that can change.
-         */
-        bool isDynamic() const;
+        virtual unsigned getTileSize() const;
 
         /**
-         * Whether the given key falls within the range limits set in the options;
-         * i.e. min/maxLevel or min/maxResolution.
+         * Whether the layer represents dynamic data, i.e. it generates data that requires
+         * an update traversal.
          */
-        virtual bool isKeyInRange(const TileKey& key) const;
+        virtual bool isDynamic() const;
 
-        /** 
+        /** Attribution to be displayed by the application */
+        virtual std::string getAttribution() const;
+
+        /**
          * Whether the data for the specified tile key is in the cache.
          */
         virtual bool isCached(const TileKey& key) const;
-        
+
         /**
-         * Gives the terrain layer a hint as to what the target profile of 
+         * Gives the terrain layer a hint as to what the target profile of
          * images will be. This is optional, but it may allow the layer to enable
          * certain optimizations since it has more information as to how the
          * data will be used.
          */
         virtual void setTargetProfileHint( const Profile* profile );
 
-        /** 
-         * The cache bin for storing data generated by this layer
-         */
-        virtual CacheBin* getCacheBin( const Profile* profile );
-        
         /**
-         * Gets the Cache to be used on this TerrainLayer.
+         * Disable this layer, setting an error status.
          */
-        Cache* getCache() const { return _cache.get(); }
+        void disable(const std::string& msg);
 
         /**
-         * Convenience function to check for cache_only mode
+         * Sets the I/O options to use. This data may include cache information.
          */
-        bool isCacheOnly() const;
-        
+        void setReadOptions(const osgDB::Options* readOptions);
+
+
+    public: // Data availability methods
+
         /**
-         * Convenience check for no-cache mode.
+         * Given a TileKey, returns a TileKey representing the best known available.
+         * For example, if the input TileKey exceeds the layer's max LOD, the return
+         * value will be an ancestor key at that max LOD.
+         *
+         * If a setting that effects the visible range of this layer is set (minLevel, maxLevel, minResolution or maxResolution)
+         * then any key passed in that falls outside of the valid range for the layer will return TileKey::INVALID.
          */
-        bool isNoCache() const;
+        virtual TileKey getBestAvailableTileKey(const TileKey& key) const;
+
+        /**
+         * Whether the layer possibly has real data for the provided TileKey.
+         * Best guess given available information.
+         */
+        virtual bool mayHaveData(const TileKey& key) const;
+
+        /**
+         * Whether the given key falls within the range limits set in the options;
+         * i.e. min/maxLevel or min/maxResolution. (This does not mean that the key
+         * will result in data.)
+         */
+        virtual bool isKeyInLegalRange(const TileKey& key) const;
+
+        /**
+         * Same as isKeyInLegalRange, but ignores the "maxDataLevel" setting
+         * since that does NOT affect visibility of a tile.
+         */
+        virtual bool isKeyInVisualRange(const TileKey& key) const;
+
+        /**
+         * Data Extents reported for this layer are copied into output.
+         * Returns true on success, false is there are no extents to report.
+         */
+        const DataExtentList& getDataExtents() const;
+
+        /**
+         * Gets an extent that is the union of all the extents in getDataExtents().
+         */
+        const GeoExtent& getDataExtentsUnion() const;
+
+
+    public: // Data interpretation methods
+
+        //! Special value representing "no data" in a location
+        virtual float getNoDataValue() const;
+
+        //! Values less than this will be reinterpreted as "no data"
+        virtual float getMinValidValue() const;
+
+        //! Values greater than this weill be reinterpreted as "no data"
+        virtual float getMaxValidValue() const;
 
 
     public: // Layer interface
 
         virtual SequenceControl* getSequenceControl();
 
-
     public:
-        
+
         /**
          * Metadata about the terrain layer that is stored in the cache, and read
          * when the cache is opened.
          */
-        struct CacheBinMetadata
+        struct OSGEARTH_EXPORT CacheBinMetadata : public osg::Referenced
         {
-            CacheBinMetadata() :
-                _valid(false) { }
+            CacheBinMetadata();
 
-            CacheBinMetadata( const CacheBinMetadata& rhs ) :
-                _valid          ( rhs._valid ),
-                _cacheBinId     ( rhs._cacheBinId ),
-                _sourceName     ( rhs._sourceName ),
-                _sourceDriver   ( rhs._sourceDriver ),
-                _sourceTileSize ( rhs._sourceTileSize ),
-                _sourceProfile  ( rhs._sourceProfile ),
-                _cacheProfile   ( rhs._cacheProfile ),   
-                _cacheCreateTime( rhs._cacheCreateTime ) { }
+            CacheBinMetadata( const CacheBinMetadata& rhs );
 
-            CacheBinMetadata( const Config& conf )
-            {
-                _valid = !conf.empty();
+            CacheBinMetadata( const Config& conf );
 
-                conf.getIfSet   ( "cachebin_id",      _cacheBinId );
-                conf.getIfSet   ( "source_name",      _sourceName );
-                conf.getIfSet   ( "source_driver",    _sourceDriver );   
-                conf.getIfSet   ( "source_tile_size", _sourceTileSize );           
-                conf.getObjIfSet( "source_profile",   _sourceProfile );
-                conf.getObjIfSet( "cache_profile",    _cacheProfile ); 
-                conf.getIfSet   ( "cache_create_time", _cacheCreateTime ); 
-                
-                // check for validity. This will reject older caches that don't have
-                // sufficient attribution.
-                if ( _valid )
-                {
-                    if (!conf.hasValue("source_tile_size") ||
-                        !conf.hasChild("source_profile")   ||
-                        !conf.hasChild("cache_profile"))
-                    {
-                        _valid = false;
-                    }
-                }
-            }
+            bool isOK() const { return _valid; }
 
-            bool isValid() const { return _valid; }
-
-            Config getConfig() const
-            {
-                Config conf( "osgearth_terrainlayer_cachebin" );
-                conf.addIfSet   ( "cachebin_id",       _cacheBinId );
-                conf.addIfSet   ( "source_name",       _sourceName );
-                conf.addIfSet   ( "source_driver",     _sourceDriver );      
-                conf.addIfSet   ( "source_tile_size",  _sourceTileSize );
-                conf.addObjIfSet( "source_profile",    _sourceProfile );
-                conf.addObjIfSet( "cache_profile",     _cacheProfile );
-                conf.addIfSet   ( "cache_create_time", _cacheCreateTime );
-                return conf;
-            }
+            Config getConfig() const;
 
             bool                     _valid;
             optional<std::string>    _cacheBinId;
             optional<std::string>    _sourceName;
-            optional<std::string>    _sourceDriver;   
+            optional<std::string>    _sourceDriver;
             optional<int>            _sourceTileSize;
             optional<ProfileOptions> _sourceProfile;
             optional<ProfileOptions> _cacheProfile;
             optional<TimeStamp>      _cacheCreateTime;
+            DataExtentList           _dataExtents;
         };
 
         /**
-         * Access to information about the cache 
+         * Access to information about the cache
          */
-        bool getCacheBinMetadata( const Profile* profile, CacheBinMetadata& output );
+        CacheBinMetadata* getCacheBinMetadata(const Profile* profile);
+
+        /**
+         * Cache Settings for this layer - guaranteed to return an object
+         */
+        CacheSettings* getCacheSettings() const;
+
+    protected: // Layer
+
+        // CTOR initialization; call from subclass.
+        virtual void init();
+
+        //! Extent of this layer's data.
+        virtual const GeoExtent& getExtent() const;
 
     protected:
 
-        /** Creates the driver the supplies the actual data. Internal function. */
+        // Creates the driver the supplies the actual data.
+        // By default, this function will either return the tile source passed
+        // into the CTOR or it will try to load it from a plugin based on the
+        // driver specification in the TileSourceOptions. You can override this
+        // method to create your own tile source.
         virtual TileSource* createTileSource();
 
         void applyProfileOverrides();
 
-        CacheBin* getCacheBin( const Profile* profile, const std::string& binId );
+        CacheBin* getCacheBin(const Profile* profile);
+
+        DataExtentList& dataExtents();
+
+        //! Call this if you call dataExtents() and modify it.
+        void dirtyDataExtents();
 
     protected:
 
         osg::ref_ptr<const Profile>    _targetProfileHint;
-        mutable bool                   _tileSourceInitAttempted;
-        //bool                           _tileSourceInitFailed;
-        unsigned                       _tileSize;  
-        osg::ref_ptr<osgDB::Options>   _dbOptions;
+        unsigned                       _tileSize;
         osg::ref_ptr<MemCache>         _memCache;
+        bool _openCalled;
 
         // profile from tile source or cache, before any overrides applied
         mutable osg::ref_ptr<const Profile> _profileOriginal;
@@ -418,53 +391,57 @@ namespace osgEarth
         // profile to use
         mutable osg::ref_ptr<const Profile> _profile;
 
-        void setCachePolicy( const CachePolicy& cp );
-        const CachePolicy& getCachePolicy() const;
+        // cache key for metadata
+        std::string getMetadataKey(const Profile*) const;
+
+        // Called by a subclass before open() to indicate whether this
+        // layer should try to open a tile source and fail if unsuccesful.
+        void setTileSourceExpected(bool value) { _tileSourceExpected = value; }
+
+        //! Whether this layer expected a tilesource to be installed
+        bool isTileSourceExpected() const { return _tileSourceExpected; }
+
+        //! Subclass can set a profile on this layer before opening
+        void setProfile(const Profile* profile);
 
     private:
-        std::string                    _name;
-        std::string                    _referenceURI;
-        TerrainLayerOptions            _initOptions;
-        TerrainLayerOptions*           _runtimeOptions;
+        bool                     _tileSourceExpected;
+        mutable Threading::Mutex _initTileSourceMutex;
+        osg::ref_ptr<TileSource> _tileSource;
+        DataExtentList           _dataExtents;
+        mutable GeoExtent        _dataExtentsUnion;
 
-        mutable Threading::Mutex       _initTileSourceMutex;
-        osg::ref_ptr<TileSource>       _tileSource;
+        // The cache ID used at runtime. This will either be the cacheId found in
+        // the TerrainLayerOptions, or a dynamic cacheID generated at runtime.
+        std::string _runtimeCacheId;
 
-        osg::ref_ptr<Cache>            _cache;
-        
-        // cache policy that may be automatically set by the layer and will 
+        // cache policy that may be automatically set by the layer and will
         // override the runtime options policy if set.
-        optional<CachePolicy>          _effectiveCachePolicy;
+        optional<CachePolicy> _runtimeCachePolicy;
 
-        // maps profile signature to cache bin pointer.
-        struct CacheBinInfo
-        {
-            osg::ref_ptr<CacheBin>     _bin;
-            optional<CacheBinMetadata> _metadata;
-        };
-        typedef std::map< std::string, CacheBinInfo > CacheBinInfoMap; // indexed by profile signature
+        typedef std::map<std::string, osg::ref_ptr<CacheBinMetadata> > CacheBinMetadataMap;
+        CacheBinMetadataMap _cacheBinMetadata;
 
-        CacheBinInfoMap                _cacheBins;
-        Threading::ReadWriteMutex      _cacheBinsMutex;
+        mutable Threading::Mutex _mutex;
 
-        void init();
-        //void applyCacheFormat( CacheBin* bin, const std::string& format );
-        virtual void fireCallback( TerrainLayerCallbackMethodPtr method ) =0;
+        mutable osg::ref_ptr<CacheSettings> _cacheSettings;
 
         // methods accesible by Map:
         friend class Map;
-        void setDBOptions( const osgDB::Options* dbOptions );
-        void initializeCachePolicy( const osgDB::Options* );
         void storeProxySettings( osgDB::Options* );
-
-        /**
-         * Sets the cache to be used on this MapLayer
-         * TODO: is it legal to set this at any time?
-         */
-        void setCache( Cache* cache );
 
         // read the tile source's cache policy hint and apply as necessary
         void refreshTileSourceCachePolicyHint(TileSource*);
+
+        TileSource* createAndOpenTileSource();
+
+        // Figure out the cache settings for this layer.
+        void establishCacheSettings();
+
+    protected:
+        /** Closes the layer, deleting its tile source and any other resources. */
+        virtual void close();
+
     };
 
     typedef std::vector<osg::ref_ptr<TerrainLayer> > TerrainLayerVector;

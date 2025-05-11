@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30104.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Solar3D", "Solar3D\Solar3D.vcxproj", "{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Plugins oap3d", "OAP3DPlugin\osgdb_oap3d.vcxproj", "{30971D28-75B9-330B-8A1C-53E9003714F2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Release|x64 = Release|x64
+		ReleaseD|x64 = ReleaseD|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.Release|x64.ActiveCfg = Release|x64
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.Release|x64.Build.0 = Release|x64
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.ReleaseD|x64.ActiveCfg = ReleaseD|x64
+		{6A000ED9-C66F-48CB-8547-34A2AB0F5A76}.ReleaseD|x64.Build.0 = ReleaseD|x64
+		{30971D28-75B9-330B-8A1C-53E9003714F2}.Release|x64.ActiveCfg = Release|x64
+		{30971D28-75B9-330B-8A1C-53E9003714F2}.Release|x64.Build.0 = Release|x64
+		{30971D28-75B9-330B-8A1C-53E9003714F2}.ReleaseD|x64.ActiveCfg = ReleaseD|x64
+		{30971D28-75B9-330B-8A1C-53E9003714F2}.ReleaseD|x64.Build.0 = ReleaseD|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CE4EC8B0-FDD8-47DF-82E2-198FD0ED9FD5}
+	EndGlobalSection
+EndGlobal

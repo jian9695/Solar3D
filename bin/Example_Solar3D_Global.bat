@@ -1,0 +1,1 @@
+Solar3D ./tests/solar3d_global.earth

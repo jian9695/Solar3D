@@ -1,0 +1,23 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/SVFEngine/v16
+*.tlog
+*.obj
+*.log
+*.pdb
+/lib/SVFEngine.lib
+/Release
+/ReleaseD
+*.ipdb
+*.iobj
+/bin/Solar3D.exp
+/.vs/Solar3D/v16
+*.csv
+/.vs/osgdb_oap3d/v16/.suo
+*.db
+/OAP3DPlugin/.vs/osgdb_oap3d/v16
+*.lnk
+/~$er_Guide.docx
+/.vs/Solar3D

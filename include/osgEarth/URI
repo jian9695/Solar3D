@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 #include <osgEarth/CachePolicy>
 #include <osgEarth/Containers>
 #include <osgEarth/IOTypes>
+#include <osgEarth/HTTPClient>
 #include <osg/Image>
 #include <osg/Node>
 #include <osgDB/ReaderWriter>
@@ -53,13 +54,13 @@ namespace osgEarth
     {
     public:
         /** Creates an empty context. */
-        URIContext() { }
+        URIContext();
 
         /** Creates a context that specifies a referring object. */
-        URIContext( const std::string& referrer ) : _referrer(referrer) { }
+        URIContext(const std::string& referrer);
 
         /** Copy constructor. */
-        URIContext( const URIContext& rhs ) : _referrer(rhs._referrer) { }
+        URIContext(const URIContext& rhs);
 
         /** dtor */
         virtual ~URIContext() { }
@@ -67,7 +68,7 @@ namespace osgEarth
         /** Serializes this context to an Options structure. This is useful when passing context information
             to an osgDB::ReaderWriter that takes a stream as input -- the stream is anonymous, therefore this
             is the preferred way to communicate the context information. */
-        void apply( osgDB::Options* options );
+        void store( osgDB::Options* options );
 
         /** Creates a context from the serialized version in an Options structure (see above) */
         URIContext( const osgDB::Options* options );
@@ -88,9 +89,20 @@ namespace osgEarth
         /** creates a string suitable for passing to an osgDB::ReaderWriter implementation */
         std::string getOSGPath( const std::string& target ) const;
 
+        //! Add a header name/value pair to use when requesting a remote URL
+        void addHeader(const std::string& name, const std::string& value);
+
+        //! Headers in this URIContext
+        const Headers& getHeaders() const;
+
+        //! Headers in this URIContext
+        Headers& getHeaders();
+
+
     private:
         friend class URI;
         std::string _referrer;
+        Headers _headers;
     };
 
 //--------------------------------------------------------------------
@@ -101,7 +113,7 @@ namespace osgEarth
     class OSGEARTH_EXPORT URIStream
     {
     public:
-        URIStream( const URI& uri );
+        URIStream(const URI& uri, std::ios_base::openmode mode =std::ios_base::in);
 
         virtual ~URIStream();
 
@@ -111,8 +123,7 @@ namespace osgEarth
 
     protected:
         friend class URI;
-        std::istream*     _fileStream;
-        std::stringstream _bufStream;
+        std::istream* _instream;
     };
 
 //--------------------------------------------------------------------
@@ -199,7 +210,6 @@ namespace osgEarth
         /** Sets a cache key. By default the cache key is the full URI, but you can override that. */
         void setCacheKey( const std::string& key ) { _cacheKey = key; }
 
-
     public: // read methods return a ReadResult object
 
         ReadResult readObject(
@@ -250,23 +260,19 @@ namespace osgEarth
 
     public:
         /** Copier */
-        URI( const URI& rhs ) : _baseURI(rhs._baseURI), _fullURI(rhs._fullURI), _context(rhs._context) { }
+        URI( const URI& rhs );
 
 
     public: // config methods
 
-        Config getConfig() const
-        {
-            Config conf("uri", base());
-            conf.addIfSet("option_string", _optionString);
-            conf.setReferrer( context().referrer() );
-            return conf;
-        }
+        Config getConfig() const;
 
-        void mergeConfig(const Config& conf)
-        {
-            conf.getIfSet("option_string", _optionString);
-        }
+        void mergeConfig(const Config& conf);
+
+    public: // Static convenience methods
+
+        /** Encodes text to URL safe test. Escapes special charaters */
+        inline static std::string urlEncode(const std::string &value);
 
     protected:
         std::string _baseURI;
@@ -274,6 +280,8 @@ namespace osgEarth
         std::string _cacheKey;
         URIContext  _context;
         optional<std::string> _optionString;
+
+        void ctorCacheKey();
     };
     
 
@@ -316,7 +324,7 @@ namespace osgEarth
          * Loads an alias map from an Options.
          */
         static URIAliasMap* from( const osgDB::Options* options ) {
-            return options ? static_cast<URIAliasMap*>(const_cast<osgDB::Options*>(options)->getPluginData("osgEarth::URIAliasMap")) : 0L;
+            return options ? const_cast<URIAliasMap*>(static_cast<const URIAliasMap*>(options->getPluginData("osgEarth::URIAliasMap"))) : 0L;
         }
 
         /**
@@ -370,7 +378,7 @@ namespace osgEarth
             : LRUCache<URI,ReadResult>( threadsafe ) { }
 
         static URIResultCache* from(const osgDB::Options* options) {
-            return options ? static_cast<URIResultCache*>(const_cast<osgDB::Options*>(options)->getPluginData("osgEarth::URIResultCache")) : 0L;
+            return options ? const_cast<URIResultCache*>(static_cast<const URIResultCache*>(options->getPluginData("osgEarth::URIResultCache"))) : 0L;
         }
 
         void apply( osgDB::Options* options ) {
@@ -399,7 +407,7 @@ namespace osgEarth
         }
 
         static URIPostReadCallback* from(const osgDB::Options* options) {
-            return options ? static_cast<URIPostReadCallback*>(const_cast<osgDB::Options*>(options)->getPluginData("osgEarth::URIPostReadCallback")) : 0L;
+            return options ? const_cast<URIPostReadCallback*>(static_cast<const URIPostReadCallback*>(options->getPluginData("osgEarth::URIPostReadCallback"))) : 0L;
         }
     };
 
@@ -408,39 +416,33 @@ namespace osgEarth
 
     // Config specialization for URI:
 
-    template <> inline
-    void Config::addIfSet<URI>( const std::string& key, const optional<URI>& opt ) {
+    template<> inline
+    void Config::set<URI>( const std::string& key, const optional<URI>& opt ) {
         if ( opt.isSet() ) {
-            Config c = opt->getConfig();
-            c.key() = key;
-            // setting the referrer is a hint that this may be a relative path requiring resolution
-            //c.setReferrer( opt->context().referrer() );
-            add( c );
+            remove(key);
+            set( key, opt->getConfig() );
         }
     }
 
     template<> inline
-    void Config::updateIfSet<URI>( const std::string& key, const optional<URI>& opt ) {
-        if ( opt.isSet() ) {
-            update(key, opt->getConfig());
+    bool Config::get<URI>( const std::string& key, optional<URI>& output ) const {
+        if ( hasChild(key) ) {
+            const Config& uriconf = child(key);
+            if (!uriconf.value().empty()) {
+                output = URI(uriconf.value(), uriconf.referrer());
+                output->mergeConfig(uriconf);
+                return true;
+            }
+            else return false;
         }
-    }
-
-    template<> inline
-    bool Config::getIfSet<URI>( const std::string& key, optional<URI>& output ) const {
-        if ( hasValue(key) ) {
-            output = URI( value(key), referrer(key) );
-            output->mergeConfig(*this);
-            return true;
-        }
-        else
-            return false;
+        else return false;
     }
 
     // Config specialization for URIAliasMap
 
     template <> inline
-    void Config::addIfSet<URIAliasMap>( const std::string& key, const optional<URIAliasMap>& map ) {
+    void Config::set<URIAliasMap>( const std::string& key, const optional<URIAliasMap>& map ) {
+        remove( key );
         if ( map.isSet() ) {
             Config conf( key );
             for( std::map<std::string,std::string>::const_iterator i = map->_map.begin(); i != map->_map.end(); ++i ) {
@@ -449,20 +451,12 @@ namespace osgEarth
                 alias.add( "target", i->second );
                 conf.add( alias );
             }
-            add(conf);
+            set(conf);
         }
     }
 
     template <> inline
-    void Config::updateIfSet<URIAliasMap>( const std::string& key, const optional<URIAliasMap>& map ) {
-        if ( map.isSet() ) {
-            remove( key );
-            addIfSet( key, map );
-        }
-    }
-
-    template <> inline
-    bool Config::getIfSet<URIAliasMap>( const std::string& key, optional<URIAliasMap>& output ) const {
+    bool Config::get<URIAliasMap>( const std::string& key, optional<URIAliasMap>& output ) const {
         Config alias = child(key);
         if ( !alias.empty() ) {
             for( ConfigSet::const_iterator i = alias.children().begin(); i != alias.children().end(); ++i ) {
@@ -477,6 +471,36 @@ namespace osgEarth
             return false;
         }
     }
+
+
+//------------------------------------------------------------------------
+
+
+    // Ref.: https://stackoverflow.com/questions/154536/encode-decode-urls-in-c
+    std::string URI::urlEncode(const std::string &value)
+    {
+        std::ostringstream escaped;
+        escaped.fill('0');
+        escaped << std::hex;
+
+        for (std::string::const_iterator i = value.begin(), n = value.end(); i != n; ++i) {
+            std::string::value_type c = (*i);
+
+            // Keep alphanumeric and other accepted characters intact
+            if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+                escaped << c;
+                continue;
+            }
+
+            // Any other characters are percent-encoded
+            escaped << std::uppercase;
+            escaped << '%' << std::setw(2) << int((unsigned char)c);
+            escaped << std::nouppercase;
+        }
+
+        return escaped.str();
+    }
+
 }
 
 #endif // OSGEARTH_URI

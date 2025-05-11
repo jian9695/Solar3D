@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -64,6 +64,9 @@ namespace osgEarth { namespace Symbology
         typedef std::map< StateSetStack, GeometryVector > StateSetStackToGeometryMap;
 
         StateSetStackToGeometryMap _geometries;
+
+        bool _mergeGeometry;
+        unsigned _maxVertsPerCluster;
     };
 
 
@@ -80,6 +83,9 @@ namespace osgEarth { namespace Symbology
     {
     public:
         static void run( osg::Group* group );
+
+        /** Run the flattener and indicate the target vertex count for the MergeGeometry stage. */
+        static void run(osg::Group* group, unsigned maxVertsPerCluster);
     };
 
 

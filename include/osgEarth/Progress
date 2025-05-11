@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -26,7 +26,8 @@
 namespace osgEarth
 {
     /**
-    * ProgressCallback is a general purpose interface for functions that need to report progress.
+    * ProgressCallback is a general purpose interface for functions that need to report progress
+    * or handle cancelation of a task.
     */
     class OSGEARTH_EXPORT ProgressCallback : public osg::Referenced
     {
@@ -36,6 +37,11 @@ namespace osgEarth
         */
         ProgressCallback();
         virtual ~ProgressCallback() { }
+
+        /**
+         * Report an error and set the canceled flag to true.
+         */
+        virtual void reportError(const std::string& msg);
 
         /**
         * Callback function that will be called.
@@ -85,11 +91,19 @@ namespace osgEarth
         virtual void cancel() { _canceled = true; }
 
         /**
-         * Whether cancelation was requested
+         * Whether the associated task was canceled for some reason.
+         * Cancelation is NOT an error condition. It means that either
+         * the results of the task are no longer required, or that a
+         * recoverable problem occurred and the task is eligible to be
+         * tried again later (e.g., HTTP timeout)
          */
         virtual bool isCanceled() { return _canceled; }
 
+        /**
+         * Status/error message
+         */
         std::string& message() { return _message; }
+        const std::string& message() const { return _message; }
 
         /**
          * Resets the canceled flag.
@@ -97,26 +111,19 @@ namespace osgEarth
         void reset() { _canceled = false; }
 
         /**
-        *Whether or not the task should be retried.
-        */
-        bool needsRetry() const { return _needsRetry; }
-
-        /**
-         * Sets whether or not the task should be retried
-         */
-        void setNeedsRetry( bool needsRetry ) { _needsRetry = needsRetry; }
-
-        /**
          * Access user stats
          */
-        fast_map<std::string,double>& stats() { return _stats; }
+        typedef fast_map<std::string,double> Stats;
+        Stats& stats() { return _stats; }
+        double& stats(const std::string& name);
+        bool& collectStats() { return _collectStats; } 
+        const bool& collectStats() const { return _collectStats; }        
 
     protected:
-        volatile unsigned _numStages;
         std::string       _message;
-        mutable  bool     _needsRetry;
         mutable  bool     _canceled;
-        mutable  fast_map<std::string, double> _stats;
+        mutable  Stats    _stats;
+        mutable  bool     _collectStats;
     };
 
 
@@ -131,6 +138,8 @@ namespace osgEarth
         */
         ConsoleProgressCallback();
         virtual ~ConsoleProgressCallback() { }
+
+        virtual void reportError(const std::string& msg);
 
         /**
         * Callback function that will be called.

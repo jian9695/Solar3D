@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
-* Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+* Copyright 2019 Pelican Mapping
 * http://osgearth.org
 *
 * osgEarth is free software; you can redistribute it and/or modify
@@ -24,7 +24,8 @@
 
 #include <osgEarthAnnotation/AnnotationNode>
 #include <osgEarth/MapNode>
-#include <osgEarthSymbology/Style>
+#include <osgEarth/GeometryClamper>
+#include <osgEarthSymbology/StyleSheet>
 #include <osgEarthFeatures/Feature>
 #include <osgEarthFeatures/GeometryCompiler>
 #include <osg/Polytope>
@@ -46,31 +47,27 @@ namespace osgEarth { namespace Annotation
         META_AnnotationNode(osgEarthAnnotation, FeatureNode);
 
         /**
-         * Constructs a new FeatureNode from a single Feature
+         * Construct a new FeatureNode from a single Feature.
          */
-        FeatureNode( 
-            MapNode* mapNode, 
+        FeatureNode(
             Feature* feature,
             const Style& style = Style(),
             const GeometryCompilerOptions& options = GeometryCompilerOptions(),
             StyleSheet* styleSheet = 0);
 
         /**
-         * Constructs a new FeatureNode from a FeatureList
+         * Constuct a new FeatureNode from a list of features.
          */
-        FeatureNode( 
-            MapNode* mapNode, 
-            FeatureList& features,
+        FeatureNode(
+            const FeatureList& features,
             const Style& style = Style(),
-            const GeometryCompilerOptions& options = GeometryCompilerOptions(), 
+            const GeometryCompilerOptions& options = GeometryCompilerOptions(),
             StyleSheet* styleSheet = 0);
-
-        virtual ~FeatureNode() { }
 
          /**
          * Gets the list of features
          */
-        FeatureList& getFeatures() { return _features; };
+        FeatureList& getFeatures() { return _features; }
 
         /**
          * Utility that lets you work on this FeatureNode as a single Feature instead of a list
@@ -83,16 +80,6 @@ namespace osgEarth { namespace Annotation
         void setFeature(Feature* feature);
 
         /**
-         * Get whether cluster culling is enabled on this FeatureNode
-         */
-        bool getClusterCulling() const;
-
-        /*
-         * Sets whether cluster culling is enabled on this FeatureNode.
-         */
-        void setClusterCulling( bool clusterCulling );
-
-        /**
          * Gets the StyleSheet for the session.
          */
         StyleSheet* getStyleSheet() const;
@@ -102,17 +89,26 @@ namespace osgEarth { namespace Annotation
          */
         void setStyleSheet(StyleSheet* styleSheet);
 
+        /**
+         * Gets the FeatureIndexBuilder
+         */
+        FeatureIndexBuilder* getIndex();
+
+        /**
+        * Sets the FeatureIndexBuilder
+        */
+        void setIndex(FeatureIndexBuilder* index);
 
         /**
          * Call init to force a rebuild of this FeatureNode.  If you modify the features in the features list or add/remove features
          * call this function to rebuild the node.
          */
-        void init();
-        void dirty() { init(); }
+        void dirty();
+
+        //! @deprecated backwards compatiblity (remove after 2.10)
+        void init() { dirty(); }
 
     public: // AnnotationNode
-
-        virtual osg::Group* getAttachPoint();
 
         /**
          * Gets the Style for this FeatureNode.
@@ -120,11 +116,15 @@ namespace osgEarth { namespace Annotation
         virtual const Style& getStyle() const;
 
         /**
-         * Sets the style for this FeatureNode.  
+         * Sets the style for this FeatureNode.
          * Note:  Do NOT use embedded feature styles if you need to change the style of the FeatureNode at runtime using this method.
          *        You will need to set the style of the features themselves and call init on this FeatureNode if you use embedded styles.
          */
         virtual void setStyle(const Style& style);
+
+    public: // osg::Node
+
+        virtual void traverse(osg::NodeVisitor&);
 
     public: // MapNodeObserver
 
@@ -132,36 +132,47 @@ namespace osgEarth { namespace Annotation
 
     public:
 
-        FeatureNode(MapNode* mapNode, const Config& conf, const osgDB::Options* options);
+        FeatureNode(const Config& conf, const osgDB::Options* options);
         virtual Config getConfig() const;
 
     protected:
+
+        virtual ~FeatureNode() { }
+
         FeatureList                  _features;
         GeometryCompilerOptions      _options;
         osg::Group*                  _attachPoint;
         osg::Polytope                _featurePolytope;
         Style                        _style;
         bool                         _needsRebuild;
-        bool                         _clusterCulling;
         GeoExtent                    _extent;
-        osg::NodeCallback*           _clusterCullingCallback;
+
+        typedef TerrainCallbackAdapter<FeatureNode> ClampCallback;
+        osg::ref_ptr<ClampCallback> _clampCallback;
+        bool _clampDirty;
+        GeometryClamper::LocalData _clamperData;
 
         osg::ref_ptr< osg::Node >    _compiled;
 
         osg::ref_ptr< StyleSheet >   _styleSheet;
 
+        FeatureIndexBuilder* _index;
+
         FeatureNode() { }
         FeatureNode(const FeatureNode& rhs, const osg::CopyOp& op) { }
-        
-        virtual void reclamp( const TileKey& key, osg::Node* tile, const Terrain* );
+
+        void clamp(osg::Node* graph, const Terrain* terrain);
 
         void build();
 
-        void updateClusterCulling();
+        //void construct();
 
-        
-    private:
-        void clampMesh( osg::Node* terrainModel );
+    public:
+
+        void onTileAdded(
+            const TileKey&          key,
+            osg::Node*              graph,
+            TerrainCallbackContext& context);
     };
 
 } } // namespace osgEarth::Annotation

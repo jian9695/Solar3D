@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -46,7 +46,7 @@ namespace osgEarth
         const optional<float>& maxRange() const { return _maxRange; }
 
         /** Distance over which to fade out geometry (from max range) */
-        optional<float>& attentuationDistance() { return _attenDist; }
+        optional<float>& attenuationDistance() { return _attenDist; }
         const optional<float>& attenuationDistance() const { return _attenDist; }
 
     public:
@@ -58,8 +58,11 @@ namespace osgEarth
         optional<float> _maxRange;
         optional<float> _attenDist;
     };
+}
+OSGEARTH_SPECIALIZE_CONFIG(osgEarth::FadeOptions);
 
-
+namespace osgEarth
+{
     /**
      * Decorator node that will only display it's children when the camera is within a given elevation range
      */

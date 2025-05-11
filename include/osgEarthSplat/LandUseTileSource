@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -21,7 +21,7 @@
 
 #include <osgEarth/TileSource>
 #include <osgEarth/ImageLayer>
-#include <osgEarthUtil/SimplexNoise>
+#include <osgEarth/SimplexNoise>
 #include <osgDB/FileNameUtils>
 #include "Export"
 
@@ -37,7 +37,7 @@ namespace osgEarth { namespace Splat
             : osgEarth::TileSourceOptions(options)
         {
             setDriver("landuse");
-            baseLOD().init( 32u );
+            baseLOD().init( 12u );
             warpFactor().init( 0.01f );
             fromConfig( _conf );
         }
@@ -75,9 +75,9 @@ namespace osgEarth { namespace Splat
         Config getConfig() const
         {
             Config conf;
-            conf.addIfSet("warp",      _warp);
-            conf.addIfSet("base_lod",  _baseLOD);
-            conf.addIfSet("bits",      _bits);
+            conf.set("warp",      _warp);
+            conf.set("base_lod",  _baseLOD);
+            conf.set("bits",      _bits);
 
             // multiple
             if ( _imageLayerOptionsVec.size() > 0 )
@@ -89,7 +89,7 @@ namespace osgEarth { namespace Splat
                 {
                     images.add( "image", i->getConfig() );
                 }
-                conf.add( images );
+                conf.set( images );
             }
 
             return conf;
@@ -104,9 +104,9 @@ namespace osgEarth { namespace Splat
     private:
         void fromConfig( const Config& conf )
         {
-            conf.getIfSet("warp", _warp);
-            conf.getIfSet("base_lod", _baseLOD);
-            conf.getIfSet("bits",      _bits);
+            conf.get("warp", _warp);
+            conf.get("base_lod", _baseLOD);
+            conf.get("bits",      _bits);
             
             ConfigSet layerConfs = conf.child("images").children("image");
             for(ConfigSet::const_iterator i = layerConfs.begin(); i != layerConfs.end(); ++i)
@@ -139,6 +139,8 @@ namespace osgEarth { namespace Splat
         // Create an image.
         osg::Image* createImage(const osgEarth::TileKey& key, osgEarth::ProgressCallback* progress);
 
+        CachePolicy getCachePolicyHint() const;
+
     protected:
         virtual ~LandUseTileSource() { }
 
@@ -147,7 +149,7 @@ namespace osgEarth { namespace Splat
         osg::ref_ptr<ImageLayer>     _imageLayer;
         ImageLayerVector             _imageLayers;
         std::vector<float>           _warps;
-        osgEarth::Util::SimplexNoise _noiseGen;
+        osgEarth::SimplexNoise _noiseGen;
     };
 
     /**
@@ -161,7 +163,7 @@ namespace osgEarth { namespace Splat
             supportsExtension( "osgearth_landuse", "Land Use Driver" );
         }
 
-        virtual const char* className()
+        virtual const char* className() const
         {
             return "Land Use Driver";
         }

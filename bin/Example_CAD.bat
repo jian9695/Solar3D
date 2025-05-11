@@ -1,0 +1,1 @@
+Solar3D ./data/models/CAD/CAD.osgb

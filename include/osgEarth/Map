@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -25,12 +25,9 @@
 #include <osgEarth/Profile>
 #include <osgEarth/MapOptions>
 #include <osgEarth/MapCallback>
-#include <osgEarth/ImageLayer>
-#include <osgEarth/ElevationLayer>
-#include <osgEarth/ModelLayer>
-#include <osgEarth/MaskLayer>
 #include <osgEarth/Revisioning>
 #include <osgEarth/ThreadingUtils>
+#include <osgEarth/ElevationPool>
 #include <osgDB/Options>
 
 namespace osgEarth
@@ -42,17 +39,20 @@ namespace osgEarth
      * container for all Layer objects (that contain the actual data) and
      * the rendering options.
      */
-    class OSGEARTH_EXPORT Map : public osg::Referenced
+    class OSGEARTH_EXPORT Map : public osg::Object
     {
     public:
-        /**
-         * Constructs a new, empty map.
-         */
-        Map( const MapOptions& options =MapOptions() );
+        META_Object(osgEarth, Map);
+
+        /** Construct a new, empty map. */
+        Map();
+
+        /** Construct a new empty map with options */
+        Map(const MapOptions& options);
 
     public:
         /**
-         * Gets this Map's unique ID 
+         * Gets this Map's unique ID
          */
         UID getUID() const { return _uid; }
 
@@ -67,8 +67,7 @@ namespace osgEarth
         const MapOptions& getInitialMapOptions() const { return _initMapOptions; }
 
         /**
-         * Gets the map's master profile. This value may not be available until 
-         * after autoCalculateProfile has been called.
+         * Gets the map's master profile, which defines its SRS and tiling structure.
          */
         const Profile* getProfile() const;
 
@@ -83,103 +82,89 @@ namespace osgEarth
         const SpatialReference* getWorldSRS() const;
 
         /**
-         * Copies references of the map image layers into the output list.
+         * Adds a Layer to the map.
+         */
+        void addLayer(Layer* layer);
+
+        /**
+         * Inserts a Layer at a specific index in the Map.
+         */
+        void insertLayer(Layer* layer, unsigned index);
+
+        /**
+         * Removes a layer from the map.
+         */
+        void removeLayer(Layer* layer);
+
+        /**
+         * Moves a layer to another position in the Map.
+         */
+        void moveLayer(Layer* layer, unsigned index);
+
+        /**
+         * Gets the index of the specified layer, or returns
+         * getNumLayers() if the layer is not found.
+         */
+        unsigned getIndexOfLayer(const Layer* layer) const;
+
+        /**
+         * Copies references of the map layers into the output list.
          * This method is thread safe. It returns the map revision that was
          * in effect when the data was copied.
          */
-        Revision getImageLayers( ImageLayerVector& out_layers ) const;
+        Revision getLayers(LayerVector& out_layers) const;
 
         /**
-         * Gets the number of image layers in the map.
+         * Gets the number of layers in the map.
          */
-        int getNumImageLayers() const;
+        unsigned getNumLayers() const;
 
         /**
-         * Gets an image layer by name.
+         * Gets a layer by name.
          */
-        ImageLayer* getImageLayerByName( const std::string& name ) const;
+        Layer* getLayerByName(const std::string& name) const;
+
+        template<typename T> T* getLayerByName(const std::string& name) const;
 
         /**
          * Gets an image layer by its unique ID.
          */
-        ImageLayer* getImageLayerByUID( UID layerUID ) const;
+        Layer* getLayerByUID(UID layerUID) const;
+
+        template<typename T> T* getLayerByUID(UID layerUID) const;
 
         /**
-         * Gets an image layer at the specified index.
+         * Gets the layer at the specified index.
          */
-        ImageLayer* getImageLayerAt( int index ) const;
+        Layer* getLayerAt(unsigned index) const;
+
+        template<typename T> T* getLayerAt(unsigned index) const;
 
         /**
-         * Copies references of the elevation layers into the output list.
-         * This method is thread safe. It returns the map revision that was
-         * in effect when the data was copied.
+         * Fills the vector with references to all layers of the specified type.
          */
-        Revision getElevationLayers( ElevationLayerVector& out_layers ) const;
+        template<typename T>
+        Revision getLayers(std::vector< osg::ref_ptr<T> >& output) const;
+
+        template<typename T>
+        Revision getLayers(osg::MixinVector< osg::ref_ptr<T> >& output) const;
 
         /**
-         * Gets the number of elevation layers in the map.
+         * Gets the first layer of the specified type. This is useful when you
+         * know there in only one layer of the type you are looking for.
          */
-        int getNumElevationLayers() const;
-
-        /**
-         * Gets an elevation layer by name.
-         */
-        ElevationLayer* getElevationLayerByName( const std::string& name ) const;
-
-        /**
-         * Gets an elevation layer by its unique ID.
-         */
-        ElevationLayer* getElevationLayerByUID( UID layerUID ) const;
-
-        /**
-         * Gets an elevation layer at the specified index.
-         */
-        ElevationLayer* getElevationLayerAt( int index ) const;
-
-        /** 
-         * Copies references of the model layers into the output list.
-         * This method is thread safe. It returns the map revision that was
-         * in effect when the data was copied.
-         */
-        Revision getModelLayers( ModelLayerVector& out_layers ) const;
-
-        /**
-         * Gets the number of model layers in the map.
-         */
-        int getNumModelLayers() const;
-
-        /**
-         * Gets a model layer by name.
-         */
-        ModelLayer* getModelLayerByName( const std::string& name ) const;
-
-        /**
-         * Gets a model layer by its unique ID.
-         */
-        ModelLayer* getModelLayerByUID( UID layerUID ) const;
-
-        /**
-         * Gets the model layer at the specified index.
-         */
-        ModelLayer* getModelLayerAt( int index ) const;
-
-        /**
-         * Copies references of the mask layers into the output list.
-         * This method is thread safe. It returns the map revision that was
-         * in effect when the data was copied.
-         */
-        int getTerrainMaskLayers( MaskLayerVector& out_list ) const;
+        template<typename T> T* getLayer() const;
 
         /**
          * Adds a map layer callback to this map. This will be notified whenever layers are
          * added, removed, or re-ordered.
          */
-        void addMapCallback( MapCallback* callback ) const;
+        MapCallback* addMapCallback(MapCallback* callback) const;
 
         /**
          * Removes a callback previously added with addMapCallback.
          */
-        void removeMapCallback( MapCallback* callback );
+        void removeMapCallback(MapCallback* callback) const;
 
         /**
          * Begin a batch-update operation. Call this if you intend to add multiple
@@ -197,71 +182,6 @@ namespace osgEarth
         void endUpdate();
 
         /**
-         * Adds an image layer to the map.
-         */
-        void addImageLayer( ImageLayer* layer );
-
-        /**
-        * Adds an image layer to the map at the specified index.
-        */
-        void insertImageLayer( ImageLayer* layer, unsigned int index );
-
-        /**
-         * Removes an image layer from the map.
-         */
-        void removeImageLayer( ImageLayer* layer );
-
-        /**
-         * Moves (re-orders) an image layer to another index position in its list.
-         */
-        void moveImageLayer( ImageLayer* layer, unsigned int newIndex );
-
-        /**
-         * Adds an elevation layer to the map.
-         */
-        void addElevationLayer( ElevationLayer* layer );
-
-        /**
-         * Removes an elevation layer from the map.
-         */
-        void removeElevationLayer( ElevationLayer* layer );
-
-        /**
-         * Moves (re-orders) an elevation layer to another index position in its list.
-         */
-        void moveElevationLayer( ElevationLayer* layer, unsigned int newIndex );
-
-        /**
-         * Adds a new model layer to the map.
-         */
-        void addModelLayer( ModelLayer* layer );
-
-        /**
-         * Adds a new model layer to the map at the specified index.
-         */
-        void insertModelLayer( ModelLayer* layer, unsigned int index );
-
-        /**
-         * Removes a model layer from the map.
-         */
-        void removeModelLayer( ModelLayer* layer );
-
-        /**
-         * Moves (re-orders) an image layer to another index position in its list.
-         */
-        void moveModelLayer( ModelLayer* layer, unsigned int newIndex );
-
-        /**
-         * Adds a new layer to use as a terrain mask.
-         */
-        void addTerrainMaskLayer( MaskLayer* layer );
-
-        /**
-         * Removed a terrain mask layer that was set with setTerrainMaskLayer().
-         */
-        void removeTerrainMaskLayer( MaskLayer* layer );
-
-        /**
          * Clear all layers from this map.
          */
         void clear();
@@ -272,7 +192,6 @@ namespace osgEarth
          */
         void setLayersFromMap( const Map* map );
 
-    public:
         /**
          * Gets the user-provided options structure stored in this map.
          */
@@ -282,38 +201,12 @@ namespace osgEarth
         /**
          * Sets the readable name of this map.
          */
-        void setName( const std::string& name );
+        void setMapName( const std::string& name );
 
-        /** 
+        /**
          * Gets the readable name of this map.
          */
-        const std::string& getName() const { return _name; }
-        
-        /**
-         * Creates a flat heightfield (MSL) for the given tilekey.
-         */
-        osg::HeightField* createReferenceHeightField(
-            const TileKey& key,
-            bool           expressHeightsAsHAE =true) const;
-        
-#if 0
-        /**
-         * Populates a heightfield with data from the elevation layers
-         * in the map. The method will create a new heightfield if you
-         * don't supply one to populate.
-         *
-         * NOTE: By default, this method will populate the heightfield with HAE (height
-         * above ellipsoid) values, even if the TileKey profile has an MSL vertical
-         * datum. That is because this method is usually called to produce a renderable
-         * height field. You can override this behavior by passing in convertToHAE=false.
-         */
-        bool populateHeightField(
-            osg::ref_ptr<osg::HeightField>& hf,
-            const TileKey&                  key,
-            bool                            expressHeightsAsHAE =true,
-            ElevationSamplePolicy           samplePolicy        =SAMPLE_FIRST_VALID,
-            ProgressCallback*               progress            =0L) const;
-#endif
+        const std::string& getMapName() const { return _name; }
 
         /**
          * Sets the Cache for this Map. Set to NULL for no cache.
@@ -339,32 +232,36 @@ namespace osgEarth
         bool isGeocentric() const;
 
         /**
-         * Synronizes a map frame to the current revision of the map's data model.
-         * Returns true if new Map model data was available and a sync occurred;
-         * returns false if nothing changed.
-         */    
-        bool sync( class MapFrame& frame ) const;
-
-        enum ModelParts {
-            IMAGE_LAYERS     = 1 << 0,
-            ELEVATION_LAYERS = 1 << 1,
-            TERRAIN_LAYERS   = IMAGE_LAYERS | ELEVATION_LAYERS,
-            MODEL_LAYERS     = 1 << 2,
-            MASK_LAYERS      = 1 << 3,
-            MASKED_TERRAIN_LAYERS = TERRAIN_LAYERS | MASK_LAYERS,
-            ENTIRE_MODEL     = 0xff
-        };
-
-        /**
          * Gets the database options associated with this map.
          */
-        const osgDB::Options* getDBOptions() const { return _dbOptions.get(); }
+        const osgDB::Options* getReadOptions() const { return _readOptions.get(); }
 
+        /**
+         * Gets a version of the map profile without any vertical datum
+         */
         const Profile* getProfileNoVDatum() const { return _profileNoVDatum.get(); }
+
+        /**
+         * Access to an elevation sampling pool tied to this map
+         */
+        ElevationPool* getElevationPool() const;
+
+        /**
+         * Returns true if data for the given tile key and layers is likely
+         * to generate data quickly. This is used for pager thread pool shunting.
+         */
+        bool isFast(const TileKey& key, const LayerVector& layers) const;
+
+        /**
+         * List of attribution strings to be displayed by the application
+         */
+        void getAttributions(StringSet& attributions) const;
 
     protected:
 
         virtual ~Map();
+
+        Map(const Map& rhs, const osg::CopyOp& copy) { }
 
     private:
 
@@ -372,34 +269,92 @@ namespace osgEarth
         MapOptions _mapOptions;
         const MapOptions _initMapOptions;
         std::string _name;
-        ImageLayerVector _imageLayers;
-        ElevationLayerVector _elevationLayers;
-        ModelLayerVector _modelLayers;
-        MaskLayerVector _terrainMaskLayers;
-        MapCallbackList _mapCallbacks;
+        LayerVector _layers;
+        mutable MapCallbackList _mapCallbacks;
         osg::ref_ptr<const osgDB::Options> _globalOptions;
-        Threading::ReadWriteMutex _mapDataMutex;
+        mutable Threading::ReadWriteMutex _mapDataMutex;
         osg::ref_ptr<const Profile> _profile;
         osg::ref_ptr<const Profile> _profileNoVDatum;
-        osg::ref_ptr<Cache> _cache;
         Revision _dataModelRevision;
-        osg::ref_ptr<osgDB::Options> _dbOptions;
+        osg::ref_ptr<osgDB::Options> _readOptions;
+        osg::ref_ptr<ElevationPool> _elevationPool;
 
-        struct ElevationLayerCB : public ElevationLayerCallback {
+        struct VisibleLayerCB : public VisibleLayerCallback {
             osg::observer_ptr<Map> _map;
-            ElevationLayerCB(Map*);
-            void onVisibleChanged(TerrainLayer* layer);
+            VisibleLayerCB(Map*);
+            void onVisibleChanged(VisibleLayer* layer);
         };
-        osg::ref_ptr<ElevationLayerCB> _elevationLayerCB;
-        friend struct ElevationLayerCB;
+        osg::ref_ptr<VisibleLayerCB> _visibleLayerCB;
+        friend struct VisibleLayerCB;
+        void notifyLayerVisibleChanged(VisibleLayer*);
 
-        void notifyElevationLayerVisibleChanged(TerrainLayer*);
+        struct LayerCB : public LayerCallback {
+            LayerCB(Map*);
+            osg::observer_ptr<Map> _map;
+            void onEnabledChanged(Layer* layer);
+        };
+        osg::ref_ptr<LayerCallback> _layerCB;
+        friend struct LayerCB;
+        void notifyOnLayerEnabledChanged(Layer*);
+
+        void installLayerCallbacks(Layer*);
+        void uninstallLayerCallbacks(Layer*);
+        void openLayer(Layer*);
+        void closeLayer(Layer*);
+
 
     private:
+        void ctor();
         void calculateProfile();
 
         friend class MapInfo;
     };
+
+
+
+
+    // Templated inline methods
+
+    template<typename T> T* Map::getLayerByName(const std::string& name) const {
+        return dynamic_cast<T*>(getLayerByName(name));
+    }
+
+    template<typename T> T* Map::getLayerByUID(UID layerUID) const {
+        return dynamic_cast<T*>(getLayerByUID(layerUID));
+    }
+
+    template<typename T> T* Map::getLayerAt(unsigned index) const {
+        return dynamic_cast<T*>(getLayerAt(index));
+    }
+
+    template<typename T>
+    Revision Map::getLayers(std::vector< osg::ref_ptr<T> >& output) const {
+        Threading::ScopedReadLock lock(_mapDataMutex);
+        for (LayerVector::const_iterator i = _layers.begin(); i != _layers.end(); ++i) {
+            T* obj = dynamic_cast<T*>(i->get());
+            if (obj) output.push_back(obj);
+        }
+        return _dataModelRevision;
+    }
+
+    template<typename T>
+    Revision Map::getLayers(osg::MixinVector< osg::ref_ptr<T> >& output) const {
+        Threading::ScopedReadLock lock(_mapDataMutex);
+        for (LayerVector::const_iterator i = _layers.begin(); i != _layers.end(); ++i) {
+            T* obj = dynamic_cast<T*>(i->get());
+            if (obj) output.push_back(obj);
+        }
+        return _dataModelRevision;
+    }
+
+    template<typename T> T* Map::getLayer() const {        
+        Threading::ScopedReadLock lock(_mapDataMutex);
+        for (LayerVector::const_iterator i = _layers.begin(); i != _layers.end(); ++i) {
+            T* obj = dynamic_cast<T*>(i->get());
+            if (obj) return obj;
+        }
+        return 0L;
+    }
 }
 
 #endif // OSGEARTH_MAP_H

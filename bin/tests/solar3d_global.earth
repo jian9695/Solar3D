@@ -1,0 +1,62 @@
+<!--
+osgEarth Sample. Like boston.earth, but on a projected map
+-->
+
+<map name="Global OAP3D Demo" type="geocentric" version="2">
+
+    <image name="arcgis-world-imagery" driver="arcgis">
+        <url>http://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/</url>
+		<nodata_image>http://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/100/0/0.jpeg</nodata_image>
+		<cache_policy usage="no_cache"/>
+    </image>
+    
+    <!--<elevation name="readymap_elevation" driver="tms">
+        <url>http://readymap.org/readymap/tiles/1.0.0/116/</url>
+    </elevation>-->
+
+  <annotations>
+    <label text="OAP3D">
+      <position x="-71.0589" y="42.3601" alt="0" srs="wgs84"/>
+      <style type="text/css">
+        text-align:     center_center;
+        text-size:      20;
+        text-declutter: true;
+        text-halo:      #777;
+        text-bbox-fill: #00FF0033;
+        text-bbox-margin: 3;
+        text-bbox-border: #FFFFFFFF;
+        text-bbox-border-width: 1;
+      </style>
+    </label>
+
+    <model name="OAP3D">
+      <position x="-71.0589" y="42.3601" alt="0" srs="wgs84"/>
+      <local_offset x="3024.08521" y="9106.22070" z="0"/>
+      <scale x="1.0" y="1.0" z="1.0"/>
+      <style>
+        model: "../data/models/OAP3D.oap3d";
+        model-heading:0.0;
+        model-pitch: 0.0;
+        model-roll: 0.0;
+      </style>
+    </model>
+
+    <model name="CAD">
+      <position x="-71.0589" y="42.3601" alt="0" srs="wgs84"/>
+      <local_offset x="0" y="1000" z="10"/>
+      <scale x="1.0" y="1.0" z="1.0"/>
+      <style>
+        model: "../data/models/CAD/CAD.osgb";
+        model-heading:0.0;
+        model-pitch: 0.0;
+        model-roll: 0.0;
+      </style>
+    </model>
+  </annotations>
+
+  <viewpoints time="1.0">
+    <viewpoint name="OAP3D" heading="24.261" height="0" lat="42.3601" long="-71.0589" pitch="-21.6" range="2450"/>
+    <viewpoint name="CAD" heading="24.261" height="0" lat="42.3701" long="-71.0589" pitch="-21.6" range="2450"/>
+  </viewpoints>
+
+</map>

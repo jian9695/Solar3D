@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -22,7 +22,6 @@
 #include <osgEarthUtil/Common>
 #include <osgEarth/Common>
 #include <osgEarth/Units>
-#include <osgEarth/AlphaEffect>
 #include <osgEarth/Containers>
 #include <osg/Drawable>
 #include <osg/Geode>
@@ -41,7 +40,7 @@
  * Controls are 2D interface components that automatically layout to fit their containers.
  * The support layout containers, margins and padding, alignment/justification, and docking.
  * Controls are a quick and easy way to add "HUD" components to a scene. Just create a
- * ControlSurface and add it to a View's scene. Then create and add Controls to that
+ * ControlCanvas and add it to a View's scene. Then create and add Controls to that
  * surface.
  */
 namespace osgEarth { namespace Util { namespace Controls
@@ -55,7 +54,7 @@ namespace osgEarth { namespace Util { namespace Controls
     // internal state class
     struct ControlContext
     {
-        ControlContext() : _viewContextID(~0) { }
+        ControlContext() : _view(0L), _viewContextID(~0), _frameStamp(0L) { }
         osg::View* _view;
         osg::ref_ptr<const osg::Viewport> _vp;
         unsigned int _viewContextID;
@@ -151,7 +150,7 @@ namespace osgEarth { namespace Util { namespace Controls
         virtual void onValueChanged( class Control* control, const std::string& value ) { onValueChanged(control); }
         virtual void onValueChanged( class Control* control, void* value ) { onValueChanged(control); }
         virtual void onValueChanged( class Control* control ) { }
-        
+
         /** dtor */
         virtual ~ControlEventHandler() { }
     };
@@ -232,7 +231,7 @@ namespace osgEarth { namespace Util { namespace Controls
         void setVertFill( bool value, float minHeight =0.0f );
         bool vertFill() const { return _vfill; }
 
-        void setVisible( bool value );
+        virtual void setVisible( bool value );
         bool visible() const { return _visible; }
         bool parentIsVisible() const;
 
@@ -266,13 +265,13 @@ namespace osgEarth { namespace Util { namespace Controls
         bool getAbsorbEvents() const { return _absorbEvents; }
 
         /** control opacity [0..1] */
-        void setOpacity(float value) { if ( _alphaEffect.valid() ) _alphaEffect->setAlpha(value); }
-        float getOpacity() const { return _alphaEffect.valid() ? _alphaEffect->getAlpha() : 1.0f; }
+        void setOpacity(float value);
+        float getOpacity() const { return _foreColor->a(); }
 
         void addEventHandler( ControlEventHandler* handler, bool fire =false );
 
     public:
-        
+
         // mark the control as dirty so that it will regenerate on the next pass.
         virtual void dirty();
         bool isDirty() const { return _dirty; }
@@ -327,7 +326,9 @@ namespace osgEarth { namespace Util { namespace Controls
         bool _absorbEvents;
         osg::Geode* _geode;
         osg::ref_ptr<osg::Geometry> _geom;
-        osg::ref_ptr<AlphaEffect> _alphaEffect;
+
+        static osg::observer_ptr<osg::StateSet> s_geomStateSet;
+        osg::ref_ptr<osg::StateSet> getGeomStateSet();
     };
 
     typedef std::vector< osg::ref_ptr<Control> > ControlVector;
@@ -423,7 +424,7 @@ namespace osgEarth { namespace Util { namespace Controls
             const osg::Vec4f&    activeColor =osg::Vec4f(0.5,0.5,1,1),
             float                fontSize    =18.0f,
             ControlEventHandler* handler     =0L );
-        
+
         ButtonControl(
             const std::string&   text,
             ControlEventHandler* handler );
@@ -436,12 +437,16 @@ namespace osgEarth { namespace Util { namespace Controls
     {
     public:
         ImageControl( osg::Image* image =0L );
+        ImageControl( osg::Texture* texture );
 
         /** dtor */
         virtual ~ImageControl() { }
 
         void setImage( osg::Image* image );
         osg::Image* getImage() const { return _image.get(); }
+
+        void setTexture( osg::Texture* texture );
+        osg::Texture* getTexture() const { return _texture.get(); }
 
         /** Rotates the image. */
         void setRotation( const Angular& angle );
@@ -457,11 +462,18 @@ namespace osgEarth { namespace Util { namespace Controls
         virtual void draw( const ControlContext& cx );
 
     private:
+        /** Recalculate the size of the texture */
+        osg::Vec2i calculateImageSize() const;
+
         osg::ref_ptr<osg::Image> _image;
+        osg::ref_ptr<osg::Texture> _texture;
         Angular _rotation;
         bool _fixSizeForRot;
         osg::Geometry* _geom;
         float _opacity;
+
+        static osg::observer_ptr<osg::StateSet> s_imageStateSet;
+        osg::ref_ptr<osg::StateSet> getImageStateSet();
     };
 
     /**
@@ -509,7 +521,7 @@ namespace osgEarth { namespace Util { namespace Controls
         /** dtor */
         virtual ~CheckBoxControl() { }
 
-        void setValue( bool value );
+        void setValue( bool value, bool notify=true );
         bool getValue() const { return _value; }
 
     public:
@@ -571,22 +583,22 @@ namespace osgEarth { namespace Util { namespace Controls
 
         /** dtor */
         virtual ~Container() { }
-        
+
         // space between children
         void setChildSpacing( float value );
         float childSpacing() const { return _spacing; }
 
-        // horiz alignment to set on children (that do not already have alignment explicity set)
+        // horiz alignment to set on children (that do not already have alignment explicitly set)
         void setChildHorizAlign( Alignment align );
         const optional<Alignment>& childHorizAlign() const { return _childhalign; }
 
-        // vert alignment to set on children (that do not already have alignment explicity set)
+        // vert alignment to set on children (that do not already have alignment explicitly set)
         void setChildVertAlign( Alignment align );
         const optional<Alignment>& childVertAlign() const { return _childvalign; }
 
         // adds a control.
         template<typename T>
-        T* addControl( T* control, int index =-1 ) { 
+        T* addControl( T* control, int index =-1 ) {
             return dynamic_cast<T*>( addControlImpl(control, index) ); }
 
         // default multiple-add function.
@@ -597,6 +609,9 @@ namespace osgEarth { namespace Util { namespace Controls
 
         // gets a vector of pointers to the container's immediate children
         virtual void getChildren(std::vector<Control*>& out);
+
+	// change the visibility of the grid and its controls
+	virtual void setVisible( bool value );
 
     public:
         virtual void calcSize( const ControlContext& context, osg::Vec2f& out_size );
@@ -612,16 +627,16 @@ namespace osgEarth { namespace Util { namespace Controls
         virtual bool handle( const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& aa, ControlContext& cx );
 
         void applyChildAligns();
-        
+
         //void setChildRenderSize( Control* child, float w, float h ) { child->_renderSize.set( w, h ); }
         float& renderWidth(Control* child) { return child->_renderSize.x(); }
         float& renderHeight(Control* child) { return child->_renderSize.y(); }
 
-    private:        
+    private:
         float _spacing;
         optional<Alignment> _childhalign;
         optional<Alignment> _childvalign;
-        
+
         //ControlList& mutable_children() { return const_cast<ControlList&>(children()); }
     };
 
@@ -640,7 +655,7 @@ namespace osgEarth { namespace Util { namespace Controls
     public: // Container
         virtual void clearControls();
 
-    public: // Control        
+    public: // Control
         virtual void calcSize( const ControlContext& context, osg::Vec2f& out_size );
         virtual void calcFill( const ControlContext& context );
         virtual void calcPos ( const ControlContext& context, const osg::Vec2f& cursor, const osg::Vec2f& parentSize );
@@ -669,7 +684,7 @@ namespace osgEarth { namespace Util { namespace Controls
         //virtual const ControlList& children() const { return _controls; }
         virtual void clearControls();
 
-    public: // Control        
+    public: // Control
         virtual void calcSize( const ControlContext& context, osg::Vec2f& out_size );
         virtual void calcFill( const ControlContext& context );
         virtual void calcPos ( const ControlContext& context, const osg::Vec2f& cursor, const osg::Vec2f& parentSize );
@@ -704,12 +719,14 @@ namespace osgEarth { namespace Util { namespace Controls
     public: // Container
         virtual void clearControls();
 
+
+
         // adds the controls as a row at the bottom of the grid.
         virtual void addControls( const ControlVector& controls );
 
         virtual void getChildren(std::vector<Control*>& out);
 
-    public: // Control        
+    public: // Control
         virtual void calcSize( const ControlContext& context, osg::Vec2f& out_size );
         virtual void calcFill( const ControlContext& context );
         virtual void calcPos ( const ControlContext& context, const osg::Vec2f& cursor, const osg::Vec2f& parentSize );
@@ -723,7 +740,7 @@ namespace osgEarth { namespace Util { namespace Controls
         void expandToInclude(int cols, int rows);
 
         osg::Group* getRow(unsigned index);
-        
+
         std::vector<float> _rowHeights, _colWidths;
         unsigned _maxCols;
     };
@@ -839,14 +856,14 @@ namespace osgEarth { namespace Util { namespace Controls
     public:
         /** Accesses the control canvas attached the the specified view. */
         static ControlCanvas* get(osg::View* view);
-        
+
         /** Accesses the control canvas attached the the specified view. */
         static ControlCanvas* getOrCreate(osg::View* view);
 
     public:
         /** adds a top-level control to this surface. */
         template<typename T>
-        T* addControl( T* control ) { 
+        T* addControl( T* control ) {
             return dynamic_cast<T*>( addControlImpl( control ) ); }
 
         /** removes a top-level control. */
@@ -880,7 +897,7 @@ namespace osgEarth { namespace Util { namespace Controls
         ControlContext  _context;
         bool            _contextDirty;
         bool            _updatePending;
-        
+
         typedef std::map< osg::observer_ptr<osgGA::GUIEventHandler>, osg::observer_ptr<osgViewer::View> > EventHandlersMap;
         EventHandlersMap _eventHandlersMap;
 

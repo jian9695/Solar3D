@@ -1,6 +1,6 @@
 /* -*-c++-*- */
-/* osgEarth - Dynamic map generation toolkit for OpenSceneGraph
- * Copyright 2015 Pelican Mapping
+/* osgEarth - Geospatial SDK for OpenSceneGraph
+ * Copyright 2019 Pelican Mapping
  * http://osgearth.org
  *
  * osgEarth is free software; you can redistribute it and/or modify
@@ -21,15 +21,17 @@
 #define OSGEARTHANNO_ANNOTATION_EDITING_H 1
 
 #include <osgEarthAnnotation/Common>
-#include <osgEarthAnnotation/LocalizedNode>
+#include <osgEarthAnnotation/GeoPositionNode>
 #include <osgEarthAnnotation/CircleNode>
 #include <osgEarthAnnotation/EllipseNode>
 #include <osgEarthAnnotation/RectangleNode>
 #include <osgEarthAnnotation/Draggers>
-#include <osgEarth/MapNode>
 
 namespace osgEarth { namespace Annotation
 {
+    /**
+     * @deprecated (remove or refactor as example after 2.10)
+     */
     class OSGEARTHANNO_EXPORT AnnotationEditor : public osg::Group
     {
     protected:
@@ -39,9 +41,10 @@ namespace osgEarth { namespace Annotation
     };
 
      /**
-     * An editor node that allows you to move the position of LocalizedNode annotations    
+     * An editor node that allows you to move the position of LocalizedNode annotations 
+     * @deprecated (remove or refactor as example after 2.10)   
      */
-    class OSGEARTHANNO_EXPORT LocalizedNodeEditor : public AnnotationEditor
+    class OSGEARTHANNO_EXPORT GeoPositionNodeEditor : public AnnotationEditor
     {
     public:
         /**
@@ -49,9 +52,9 @@ namespace osgEarth { namespace Annotation
          * @param localizedNode
          *        The LocalizedNode to edit
          */
-        LocalizedNodeEditor(LocalizedNode* localizedNode);    
+        GeoPositionNodeEditor(GeoPositionNode* localizedNode);    
         
-        virtual ~LocalizedNodeEditor();    
+        virtual ~GeoPositionNodeEditor();    
 
         virtual void updateDraggers();
 
@@ -60,11 +63,14 @@ namespace osgEarth { namespace Annotation
         void setPosition( const GeoPoint& pos );
 
     protected:
-        osg::ref_ptr< LocalizedNode > _node;
+        osg::ref_ptr< GeoPositionNode > _node;
         Dragger* _dragger;
     };
-
-    class OSGEARTHANNO_EXPORT CircleNodeEditor : public LocalizedNodeEditor
+    
+    /**
+     * @deprecated (remove or refactor as example after 2.10)   
+     */
+    class OSGEARTHANNO_EXPORT CircleNodeEditor : public GeoPositionNodeEditor
     {
     public:
         /**
@@ -88,8 +94,11 @@ namespace osgEarth { namespace Annotation
 
         Dragger* _radiusDragger;
     };
-
-    class OSGEARTHANNO_EXPORT EllipseNodeEditor : public LocalizedNodeEditor
+    
+    /**
+     * @deprecated (remove or refactor as example after 2.10)   
+     */
+    class OSGEARTHANNO_EXPORT EllipseNodeEditor : public GeoPositionNodeEditor
     {
     public:
         /**
@@ -106,8 +115,11 @@ namespace osgEarth { namespace Annotation
         Dragger* _majorDragger;
         Dragger* _minorDragger;
     };
-
-    class OSGEARTHANNO_EXPORT RectangleNodeEditor : public LocalizedNodeEditor
+    
+    /**
+     * @deprecated (remove or refactor as example after 2.10)   
+     */
+    class OSGEARTHANNO_EXPORT RectangleNodeEditor : public GeoPositionNodeEditor
     {
     public:
         /**
